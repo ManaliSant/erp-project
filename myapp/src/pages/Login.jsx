@@ -30,7 +30,6 @@ export default function Login() {
       setError("");
 
       const data = await loginUser(form);
-
       dispatch(loginSuccess(data));
       navigate("/dashboard");
     } catch (err) {

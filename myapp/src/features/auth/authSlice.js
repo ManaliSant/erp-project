@@ -5,8 +5,8 @@ const authSlice = createSlice({
   initialState: {
     selectedUserId: 1,
     currentUser: null,
-    token: null,
-    isAuthenticated: false,
+    token: localStorage.getItem("token") || null,
+    isAuthenticated: !!localStorage.getItem("token"),
   },
   reducers: {
     setSelectedUserId: (state, action) => {
@@ -17,6 +17,17 @@ const authSlice = createSlice({
       state.token = action.payload.token;
       state.isAuthenticated = true;
 
+      localStorage.setItem("token", action.payload.token);
+
+      if (action.payload.user?.id) {
+        state.selectedUserId = action.payload.user.id;
+      }
+    },
+    restoreSession: (state, action) => {
+      state.currentUser = action.payload.user;
+      state.token = localStorage.getItem("token");
+      state.isAuthenticated = !!localStorage.getItem("token");
+
       if (action.payload.user?.id) {
         state.selectedUserId = action.payload.user.id;
       }
@@ -26,9 +37,11 @@ const authSlice = createSlice({
       state.token = null;
       state.isAuthenticated = false;
       state.selectedUserId = 1;
+
+      localStorage.removeItem("token");
     },
   },
 });
 
-export const { setSelectedUserId, loginSuccess, logout } = authSlice.actions;
+export const { setSelectedUserId, loginSuccess, restoreSession, logout } = authSlice.actions;
 export default authSlice.reducer;

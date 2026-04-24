@@ -16,6 +16,7 @@ import {
   selectIsAdmin,
   selectIsAuthenticated,
 } from "../features/auth/selectors";
+import { restoreSession } from "../features/auth/authSlice";
 
 function AppShell() {
   const dispatch = useDispatch();
@@ -35,9 +36,17 @@ function AppShell() {
         const data = await fetchEmployees();
         if (Array.isArray(data) && data.length > 0) {
           dispatch(setEmployees(data));
+
+          const token = localStorage.getItem("token");
+          if (token && !currentUser) {
+            const matchedUser = data.find((emp) => emp.email);
+            if (matchedUser) {
+              dispatch(restoreSession({ user: matchedUser }));
+            }
+          }
         }
       } catch (error) {
-        setEmployeeLoadError("Failed to load employees from backend. Using local data.");
+        setEmployeeLoadError("Failed to load employees from backend.");
       } finally {
         setEmployeeLoading(false);
       }
@@ -46,14 +55,12 @@ function AppShell() {
     loadEmployees();
   }, [dispatch]);
 
+  if (!currentUser && localStorage.getItem("token")) {
+    return <div style={{ padding: 24 }}>Loading session...</div>;
+  }
+
   return (
-    <PageLayout
-      currentUser={currentUser}
-      isAdmin={isAdmin}
-      employees={employees}
-      selectedUserId={currentUser?.id || 1}
-      onUserChange={() => {}}
-    >
+    <PageLayout currentUser={currentUser} isAdmin={isAdmin}>
       {employeeLoading && (
         <p style={{ marginBottom: 12, color: "#555" }}>Loading employees...</p>
       )}
