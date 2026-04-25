@@ -5,6 +5,7 @@ import com.example.erp.dto.ReviewRequest;
 import com.example.erp.entity.HrApplication;
 import com.example.erp.service.ApplicationService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -18,16 +19,19 @@ public class ApplicationController {
     private final ApplicationService applicationService;
 
     @GetMapping
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'EMPLOYEE')")
     public List<HrApplication> getApplications() {
         return applicationService.getAllApplications();
     }
 
     @PostMapping
+    @PreAuthorize("hasAnyRole('EMPLOYEE', 'MANAGER', 'ADMIN')")
     public HrApplication createApplication(@RequestBody ApplicationRequest request) {
         return applicationService.createApplication(request);
     }
 
     @PatchMapping("/{id}/manager-approve")
+    @PreAuthorize("hasRole('MANAGER')")
     public HrApplication managerApproveApplication(
             @PathVariable String id,
             @RequestBody ReviewRequest request) {
@@ -35,6 +39,7 @@ public class ApplicationController {
     }
 
     @PatchMapping("/{id}/admin-approve")
+    @PreAuthorize("hasRole('ADMIN')")
     public HrApplication adminApproveApplication(
             @PathVariable String id,
             @RequestBody ReviewRequest request) {
@@ -42,6 +47,7 @@ public class ApplicationController {
     }
 
     @PatchMapping("/{id}/reject")
+    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
     public HrApplication rejectApplication(
             @PathVariable String id,
             @RequestBody ReviewRequest request) {
