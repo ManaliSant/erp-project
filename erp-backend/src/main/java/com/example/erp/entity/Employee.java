@@ -30,7 +30,7 @@ public class Employee {
     private String password;
 
     @Column(nullable = false)
-    private String role;
+    private String role; // ADMIN, MANAGER, EMPLOYEE
 
     private String department;
     private String designation;

@@ -27,13 +27,24 @@ public class ApplicationController {
         return applicationService.createApplication(request);
     }
 
-    @PatchMapping("/{id}/approve")
-    public HrApplication approveApplication(@PathVariable String id, @RequestBody ReviewRequest request) {
-        return applicationService.approveApplication(id, request);
+    @PatchMapping("/{id}/manager-approve")
+    public HrApplication managerApproveApplication(
+            @PathVariable String id,
+            @RequestBody ReviewRequest request) {
+        return applicationService.managerApproveApplication(id, request);
+    }
+
+    @PatchMapping("/{id}/admin-approve")
+    public HrApplication adminApproveApplication(
+            @PathVariable String id,
+            @RequestBody ReviewRequest request) {
+        return applicationService.adminApproveApplication(id, request);
     }
 
     @PatchMapping("/{id}/reject")
-    public HrApplication rejectApplication(@PathVariable String id, @RequestBody ReviewRequest request) {
+    public HrApplication rejectApplication(
+            @PathVariable String id,
+            @RequestBody ReviewRequest request) {
         return applicationService.rejectApplication(id, request);
     }
 }
