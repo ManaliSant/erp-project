@@ -4,17 +4,21 @@ export const selectAuthUser = (state) => state.auth.currentUser;
 export const selectIsAuthenticated = (state) => state.auth.isAuthenticated;
 
 export const selectCurrentUser = (state) => {
-  if (state.auth.currentUser) {
-    return state.auth.currentUser;
-  }
+  return state.auth.currentUser || null;
+};
 
-  return state.employees.list.find((e) => e.id === state.auth.selectedUserId) || null;
+export const selectCurrentRole = (state) => {
+  return state.auth.currentUser?.role?.toUpperCase() || "";
 };
 
 export const selectIsAdmin = (state) => {
-  const user = state.auth.currentUser
-    ? state.auth.currentUser
-    : state.employees.list.find((e) => e.id === state.auth.selectedUserId);
+  return selectCurrentRole(state) === "ADMIN";
+};
 
-  return user?.role === "admin";
+export const selectIsManager = (state) => {
+  return selectCurrentRole(state) === "MANAGER";
+};
+
+export const selectIsEmployee = (state) => {
+  return selectCurrentRole(state) === "EMPLOYEE";
 };

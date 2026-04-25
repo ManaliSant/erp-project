@@ -19,15 +19,21 @@ function linkStyle(isActive) {
   };
 }
 
-export default function Sidebar({ currentUser, isAdmin }) {
+export default function Sidebar({ currentUser }) {
+  const role = currentUser?.role?.toUpperCase() || "EMPLOYEE";
+  const isAdmin = role === "ADMIN";
+
   return (
     <div style={styles.sidebar}>
       <div style={styles.logo}>HR ERP</div>
 
       <div style={styles.userBox}>
-        <div style={{ fontWeight: "bold" }}>{currentUser?.name || "Unknown User"}</div>
+        <div style={{ fontWeight: "bold" }}>
+          {currentUser?.name || "Unknown User"}
+        </div>
+
         <div style={{ fontSize: 13, color: "#555" }}>
-          {isAdmin ? "HR Admin" : "Employee"}
+          {role}
         </div>
       </div>
 

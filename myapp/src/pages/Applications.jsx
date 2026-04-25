@@ -1,34 +1,47 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
+
 import Card from "../components/common/Card";
 import StatusBadge from "../components/common/StatusBadge";
 import { styles } from "../utils/styles";
+
 import {
   setApplications,
   addApplicationLocal,
-  approveApplicationLocal,
   rejectApplicationLocal,
 } from "../features/applications/applicationSlice";
-import { reduceEmployeeLeaves } from "../features/employees/employeeSlice";
+
 import { validateApplicationForm } from "../utils/validation";
-import { selectCurrentUser, selectIsAdmin } from "../features/auth/selectors";
+
+import {
+  selectCurrentUser,
+  selectIsAdmin,
+  selectIsManager,
+  selectIsEmployee,
+} from "../features/auth/selectors";
+
 import {
   createApplication,
   fetchApplications,
-  approveApplicationRequest,
+  managerApproveApplicationRequest,
+  adminApproveApplicationRequest,
   rejectApplicationRequest,
 } from "../services/applicationService";
 
 export default function Applications() {
   const dispatch = useDispatch();
+
   const applications = useSelector((state) => state.applications.list);
   const currentUser = useSelector(selectCurrentUser);
-  const isAdmin = useSelector(selectIsAdmin);
 
-  const myApplications = useMemo(() => {
-    if (isAdmin) return applications;
-    return applications.filter((a) => a.employeeId === currentUser.id);
-  }, [applications, currentUser, isAdmin]);
+  const isAdmin = useSelector(selectIsAdmin);
+  const isManager = useSelector(selectIsManager);
+  const isEmployee = useSelector(selectIsEmployee);
+
+  const visibleApplications = useMemo(() => {
+    if (isAdmin || isManager) return applications;
+    return applications.filter((a) => a.employeeId === currentUser?.id);
+  }, [applications, currentUser, isAdmin, isManager]);
 
   const [form, setForm] = useState({
     type: "Leave",
@@ -51,11 +64,12 @@ export default function Applications() {
         setApiError("");
 
         const data = await fetchApplications();
+
         if (Array.isArray(data)) {
           dispatch(setApplications(data));
         }
       } catch (error) {
-        setApiError("Failed to load applications from backend. Showing local data if available.");
+        setApiError("Failed to load applications from backend.");
       } finally {
         setPageLoading(false);
       }
@@ -63,6 +77,13 @@ export default function Applications() {
 
     loadApplications();
   }, [dispatch]);
+
+  async function reloadApplications() {
+    const data = await fetchApplications();
+    if (Array.isArray(data)) {
+      dispatch(setApplications(data));
+    }
+  }
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -89,8 +110,7 @@ export default function Applications() {
       setApiError("");
 
       const created = await createApplication(payload);
-
-      dispatch(addApplicationLocal(created || payload));
+      dispatch(addApplicationLocal(created));
 
       setForm({
         type: "Leave",
@@ -103,29 +123,43 @@ export default function Applications() {
       setErrors({});
       alert("Application submitted successfully.");
     } catch (error) {
-      setApiError("API failed. Backend is not connected or request failed.");
+      setApiError("Failed to submit application.");
     } finally {
       setLoading(false);
     }
   }
 
-  async function handleApprove(app) {
+  async function handleManagerApprove(app) {
     try {
       setActionLoadingId(app.id);
       setApiError("");
 
-      await approveApplicationRequest(app.id, {
+      await managerApproveApplicationRequest(app.id, {
         reviewedBy: currentUser.name,
-        reviewComment: "Approved by HR.",
+        reviewComment: "Approved by manager.",
       });
 
-      dispatch(approveApplicationLocal({ appId: app.id, reviewer: currentUser.name }));
-
-      if (app.type === "Leave" && app.days > 0) {
-        dispatch(reduceEmployeeLeaves({ employeeId: app.employeeId, days: app.days }));
-      }
+      await reloadApplications();
     } catch (error) {
-      setApiError("Failed to approve application.");
+      setApiError("Failed to manager-approve application.");
+    } finally {
+      setActionLoadingId(null);
+    }
+  }
+
+  async function handleAdminApprove(app) {
+    try {
+      setActionLoadingId(app.id);
+      setApiError("");
+
+      await adminApproveApplicationRequest(app.id, {
+        reviewedBy: currentUser.name,
+        reviewComment: "Final approval by admin.",
+      });
+
+      await reloadApplications();
+    } catch (error) {
+      setApiError("Failed to final-approve application.");
     } finally {
       setActionLoadingId(null);
     }
@@ -138,10 +172,11 @@ export default function Applications() {
 
       await rejectApplicationRequest(app.id, {
         reviewedBy: currentUser.name,
-        reviewComment: "Rejected by HR.",
+        reviewComment: "Rejected.",
       });
 
       dispatch(rejectApplicationLocal({ appId: app.id, reviewer: currentUser.name }));
+      await reloadApplications();
     } catch (error) {
       setApiError("Failed to reject application.");
     } finally {
@@ -152,14 +187,18 @@ export default function Applications() {
   return (
     <div>
       {pageLoading && (
-        <p style={{ marginBottom: 12, color: "#555" }}>Loading applications...</p>
+        <p style={{ marginBottom: 12, color: "#555" }}>
+          Loading applications...
+        </p>
       )}
 
       {apiError && (
-        <p style={{ marginBottom: 12, color: "red", fontSize: 12 }}>{apiError}</p>
+        <p style={{ marginBottom: 12, color: "red", fontSize: 12 }}>
+          {apiError}
+        </p>
       )}
 
-      {!isAdmin && (
+      {isEmployee && (
         <Card title="Submit Application">
           <form onSubmit={handleSubmit}>
             <div style={styles.formGrid}>
@@ -184,7 +223,9 @@ export default function Applications() {
                   value={form.title}
                   onChange={(e) => setForm({ ...form, title: e.target.value })}
                 />
-                {errors.title && <p style={{ color: "red", fontSize: 12 }}>{errors.title}</p>}
+                {errors.title && (
+                  <p style={{ color: "red", fontSize: 12 }}>{errors.title}</p>
+                )}
               </div>
 
               <div>
@@ -192,10 +233,14 @@ export default function Applications() {
                 <input
                   style={styles.input}
                   value={form.dateRange}
-                  onChange={(e) => setForm({ ...form, dateRange: e.target.value })}
+                  onChange={(e) =>
+                    setForm({ ...form, dateRange: e.target.value })
+                  }
                 />
                 {errors.dateRange && (
-                  <p style={{ color: "red", fontSize: 12 }}>{errors.dateRange}</p>
+                  <p style={{ color: "red", fontSize: 12 }}>
+                    {errors.dateRange}
+                  </p>
                 )}
               </div>
 
@@ -206,7 +251,9 @@ export default function Applications() {
                   value={form.days}
                   onChange={(e) => setForm({ ...form, days: e.target.value })}
                 />
-                {errors.days && <p style={{ color: "red", fontSize: 12 }}>{errors.days}</p>}
+                {errors.days && (
+                  <p style={{ color: "red", fontSize: 12 }}>{errors.days}</p>
+                )}
               </div>
             </div>
 
@@ -216,10 +263,14 @@ export default function Applications() {
                 style={styles.textarea}
                 rows={4}
                 value={form.description}
-                onChange={(e) => setForm({ ...form, description: e.target.value })}
+                onChange={(e) =>
+                  setForm({ ...form, description: e.target.value })
+                }
               />
               {errors.description && (
-                <p style={{ color: "red", fontSize: 12 }}>{errors.description}</p>
+                <p style={{ color: "red", fontSize: 12 }}>
+                  {errors.description}
+                </p>
               )}
             </div>
 
@@ -230,7 +281,15 @@ export default function Applications() {
         </Card>
       )}
 
-      <Card title={isAdmin ? "All Applications / HR Review" : "My Applications"}>
+      <Card
+        title={
+          isAdmin
+            ? "All Applications / Admin Final Review"
+            : isManager
+            ? "Team Applications / Manager Review"
+            : "My Applications"
+        }
+      >
         <div style={{ overflowX: "auto" }}>
           <table style={styles.table}>
             <thead>
@@ -238,54 +297,97 @@ export default function Applications() {
                 <th style={styles.th}>Application</th>
                 <th style={styles.th}>Employee</th>
                 <th style={styles.th}>Type</th>
-                <th style={styles.th}>Date</th>
-                <th style={styles.th}>Status</th>
+                <th style={styles.th}>Created</th>
+                <th style={styles.th}>Overall</th>
+                <th style={styles.th}>Manager</th>
+                <th style={styles.th}>Admin</th>
                 <th style={styles.th}>Action</th>
               </tr>
             </thead>
+
             <tbody>
-              {myApplications.map((app) => (
+              {visibleApplications.map((app) => (
                 <tr key={app.id}>
                   <td style={styles.td}>
                     <div style={{ fontWeight: "bold" }}>{app.title}</div>
-                    <div style={{ fontSize: 12, color: "#666" }}>{app.description}</div>
+                    <div style={{ fontSize: 12, color: "#666" }}>
+                      {app.description}
+                    </div>
                   </td>
+
                   <td style={styles.td}>{app.employeeName}</td>
                   <td style={styles.td}>{app.type}</td>
                   <td style={styles.td}>{app.createdAt}</td>
+
                   <td style={styles.td}>
                     <StatusBadge status={app.status} />
                   </td>
+
                   <td style={styles.td}>
-                    {isAdmin && app.status === "Pending" ? (
+                    <StatusBadge status={app.managerStatus || "Pending"} />
+                  </td>
+
+                  <td style={styles.td}>
+                    <StatusBadge status={app.adminStatus || "Pending"} />
+                  </td>
+
+                  <td style={styles.td}>
+                    {isManager && app.managerStatus === "Pending" && (
                       <div style={{ display: "flex", gap: 8 }}>
                         <button
-                          onClick={() => handleApprove(app)}
+                          onClick={() => handleManagerApprove(app)}
                           style={styles.successButton}
                           disabled={actionLoadingId === app.id}
                         >
-                          {actionLoadingId === app.id ? "Processing..." : "Approve"}
+                          {actionLoadingId === app.id
+                            ? "Processing..."
+                            : "Manager Approve"}
                         </button>
+
                         <button
                           onClick={() => handleReject(app)}
                           style={styles.dangerButton}
                           disabled={actionLoadingId === app.id}
                         >
-                          {actionLoadingId === app.id ? "Processing..." : "Reject"}
+                          Reject
                         </button>
                       </div>
-                    ) : (
-                      <div style={{ fontSize: 12, color: "#666" }}>
-                        <div>{app.reviewedBy ? `${app.reviewedBy} - ${app.reviewComment}` : "-"}</div>
-                        {app.status === "Approved" && (
+                    )}
+
+                    {isAdmin &&
+                      app.managerStatus === "Approved" &&
+                      app.adminStatus === "Pending" && (
+                        <div style={{ display: "flex", gap: 8 }}>
                           <button
-                            type="button"
-                            style={{ ...styles.secondaryButton, marginTop: 8, padding: "6px 10px" }}
-                            disabled
+                            onClick={() => handleAdminApprove(app)}
+                            style={styles.successButton}
+                            disabled={actionLoadingId === app.id}
                           >
-                            Download PDF
+                            {actionLoadingId === app.id
+                              ? "Processing..."
+                              : "Final Approve"}
                           </button>
-                        )}
+
+                          <button
+                            onClick={() => handleReject(app)}
+                            style={styles.dangerButton}
+                            disabled={actionLoadingId === app.id}
+                          >
+                            Reject
+                          </button>
+                        </div>
+                      )}
+
+                    {!(
+                      (isManager && app.managerStatus === "Pending") ||
+                      (isAdmin &&
+                        app.managerStatus === "Approved" &&
+                        app.adminStatus === "Pending")
+                    ) && (
+                      <div style={{ fontSize: 12, color: "#666" }}>
+                        {app.reviewedBy
+                          ? `${app.reviewedBy} - ${app.reviewComment}`
+                          : "-"}
                       </div>
                     )}
                   </td>

@@ -8,10 +8,14 @@ export async function createApplication(payload) {
   return post("/applications", payload);
 }
 
-export async function approveApplicationRequest(id, payload = {}) {
-  return patch(`/applications/${id}/approve`, payload);
+export async function managerApproveApplicationRequest(id, payload) {
+  return patch(`/applications/${id}/manager-approve`, payload);
 }
 
-export async function rejectApplicationRequest(id, payload = {}) {
+export async function adminApproveApplicationRequest(id, payload) {
+  return patch(`/applications/${id}/admin-approve`, payload);
+}
+
+export async function rejectApplicationRequest(id, payload) {
   return patch(`/applications/${id}/reject`, payload);
 }
