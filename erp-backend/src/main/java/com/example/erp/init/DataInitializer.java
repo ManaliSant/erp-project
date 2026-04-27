@@ -8,6 +8,9 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Configuration
 @RequiredArgsConstructor
 public class DataInitializer {
@@ -47,6 +50,8 @@ public class DataInitializer {
                     "Fernandes", "Rao", "Mishra", "Gill", "Bhat", "Naidu"
             };
 
+            List<String> managerNames = new ArrayList<>();
+
             // 5 ADMINS
             for (int i = 1; i <= 5; i++) {
                 String firstName = firstNames[(i - 1) % firstNames.length];
@@ -79,6 +84,8 @@ public class DataInitializer {
                 String lastName = lastNames[(i + 3) % lastNames.length];
                 String fullName = firstName + " " + lastName;
 
+                managerNames.add(fullName);
+
                 employeeRepository.save(Employee.builder()
                         .employeeCode(String.format("MGR%03d", i))
                         .name(fullName)
@@ -87,7 +94,7 @@ public class DataInitializer {
                         .role("MANAGER")
                         .department(department)
                         .designation(department + " Manager")
-                        .manager("Admin User " + (((i - 1) % 5) + 1))
+                        .manager("Admin " + (((i - 1) % 5) + 1))
                         .joinDate("2022-02-" + String.format("%02d", ((i - 1) % 28) + 1))
                         .leavesRemaining(12)
                         .signedIn(false)
@@ -100,7 +107,7 @@ public class DataInitializer {
             // 450 EMPLOYEES
             for (int i = 1; i <= 450; i++) {
                 String department = departments[(i - 1) % departments.length];
-                int managerNumber = ((i - 1) % 45) + 1;
+                String assignedManager = managerNames.get((i - 1) % managerNames.size());
 
                 String firstName = firstNames[(i + 11) % firstNames.length];
                 String lastName = lastNames[(i + 7) % lastNames.length];
@@ -114,7 +121,7 @@ public class DataInitializer {
                         .role("EMPLOYEE")
                         .department(department)
                         .designation(department + " Executive")
-                        .manager("Manager User " + managerNumber)
+                        .manager(assignedManager)
                         .joinDate("2023-03-" + String.format("%02d", ((i - 1) % 28) + 1))
                         .leavesRemaining(10)
                         .signedIn(false)
@@ -123,8 +130,8 @@ public class DataInitializer {
                         .status("Active")
                         .build());
             }
-            System.out.println("✅ Finished seeding 500 employees");
-        };
 
+            System.out.println("Finished seeding 500 employees with real manager assignments.");
+        };
     }
 }

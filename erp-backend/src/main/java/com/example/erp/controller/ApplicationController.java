@@ -6,6 +6,7 @@ import com.example.erp.entity.HrApplication;
 import com.example.erp.service.ApplicationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -20,22 +21,25 @@ public class ApplicationController {
 
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'EMPLOYEE')")
-    public List<HrApplication> getApplications() {
-        return applicationService.getAllApplications();
+    public List<HrApplication> getApplications(Authentication authentication) {
+        return applicationService.getApplicationsForCurrentUser(authentication);
     }
 
     @PostMapping
     @PreAuthorize("hasAnyRole('EMPLOYEE', 'MANAGER', 'ADMIN')")
-    public HrApplication createApplication(@RequestBody ApplicationRequest request) {
-        return applicationService.createApplication(request);
+    public HrApplication createApplication(
+            @RequestBody ApplicationRequest request,
+            Authentication authentication) {
+        return applicationService.createApplication(request, authentication);
     }
 
     @PatchMapping("/{id}/manager-approve")
     @PreAuthorize("hasRole('MANAGER')")
     public HrApplication managerApproveApplication(
             @PathVariable String id,
-            @RequestBody ReviewRequest request) {
-        return applicationService.managerApproveApplication(id, request);
+            @RequestBody ReviewRequest request,
+            Authentication authentication) {
+        return applicationService.managerApproveApplication(id, request, authentication);
     }
 
     @PatchMapping("/{id}/admin-approve")
@@ -50,7 +54,8 @@ public class ApplicationController {
     @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
     public HrApplication rejectApplication(
             @PathVariable String id,
-            @RequestBody ReviewRequest request) {
-        return applicationService.rejectApplication(id, request);
+            @RequestBody ReviewRequest request,
+            Authentication authentication) {
+        return applicationService.rejectApplication(id, request, authentication);
     }
 }

@@ -7,10 +7,13 @@ import com.example.erp.entity.HrApplication;
 import com.example.erp.repository.EmployeeRepository;
 import com.example.erp.repository.HrApplicationRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -19,23 +22,53 @@ public class ApplicationService {
     private final HrApplicationRepository applicationRepository;
     private final EmployeeRepository employeeRepository;
 
-    public List<HrApplication> getAllApplications() {
-        return applicationRepository.findAll();
+    private Employee getLoggedInEmployee(Authentication authentication) {
+        String email = authentication.getName();
+
+        return employeeRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Logged-in employee not found"));
     }
 
-    public HrApplication createApplication(ApplicationRequest request) {
-        Employee employee = employeeRepository.findById(request.employeeId())
-                .orElseThrow(() -> new RuntimeException("Employee not found"));
+    public List<HrApplication> getApplicationsForCurrentUser(Authentication authentication) {
+        Employee currentUser = getLoggedInEmployee(authentication);
+
+        if ("ADMIN".equalsIgnoreCase(currentUser.getRole())) {
+            return applicationRepository.findAll();
+        }
+
+        if ("MANAGER".equalsIgnoreCase(currentUser.getRole())) {
+            List<Employee> teamMembers = employeeRepository.findByManager(currentUser.getName());
+
+            Set<Long> teamIds = new HashSet<>();
+            for (Employee employee : teamMembers) {
+                teamIds.add(employee.getId());
+            }
+
+            return applicationRepository.findAll()
+                    .stream()
+                    .filter(app -> teamIds.contains(app.getEmployeeId()))
+                    .toList();
+        }
+
+        return applicationRepository.findByEmployeeId(currentUser.getId());
+    }
+
+    public HrApplication createApplication(ApplicationRequest request, Authentication authentication) {
+        Employee currentUser = getLoggedInEmployee(authentication);
+
+        if (!currentUser.getId().equals(request.employeeId())) {
+            throw new RuntimeException("Employees can only create applications for themselves");
+        }
 
         String managerStatus;
         String adminStatus;
         String status;
 
-        if ("ADMIN".equalsIgnoreCase(employee.getRole())) {
+        if ("ADMIN".equalsIgnoreCase(currentUser.getRole())) {
             managerStatus = "Not Required";
             adminStatus = "Approved";
             status = "Approved";
-        } else if ("MANAGER".equalsIgnoreCase(employee.getRole())) {
+        } else if ("MANAGER".equalsIgnoreCase(currentUser.getRole())) {
             managerStatus = "Not Required";
             adminStatus = "Pending";
             status = "Pending";
@@ -47,8 +80,8 @@ public class ApplicationService {
 
         HrApplication application = HrApplication.builder()
                 .id("APP-" + System.currentTimeMillis())
-                .employeeId(employee.getId())
-                .employeeName(employee.getName())
+                .employeeId(currentUser.getId())
+                .employeeName(currentUser.getName())
                 .type(request.type())
                 .title(request.title())
                 .description(request.description())
@@ -67,9 +100,18 @@ public class ApplicationService {
         return applicationRepository.save(application);
     }
 
-    public HrApplication managerApproveApplication(String id, ReviewRequest request) {
+    public HrApplication managerApproveApplication(String id, ReviewRequest request, Authentication authentication) {
+        Employee manager = getLoggedInEmployee(authentication);
+
         HrApplication application = applicationRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Application not found"));
+
+        Employee applicationOwner = employeeRepository.findById(application.getEmployeeId())
+                .orElseThrow(() -> new RuntimeException("Employee not found"));
+
+        if (!manager.getName().equalsIgnoreCase(applicationOwner.getManager())) {
+            throw new RuntimeException("Manager can only approve own team applications");
+        }
 
         if ("Rejected".equalsIgnoreCase(application.getStatus())) {
             throw new RuntimeException("Rejected application cannot be approved");
@@ -125,7 +167,9 @@ public class ApplicationService {
         return applicationRepository.save(application);
     }
 
-    public HrApplication rejectApplication(String id, ReviewRequest request) {
+    public HrApplication rejectApplication(String id, ReviewRequest request, Authentication authentication) {
+        Employee currentUser = getLoggedInEmployee(authentication);
+
         HrApplication application = applicationRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Application not found"));
 
@@ -133,14 +177,24 @@ public class ApplicationService {
             throw new RuntimeException("Approved application cannot be rejected");
         }
 
+        if ("MANAGER".equalsIgnoreCase(currentUser.getRole())) {
+            Employee applicationOwner = employeeRepository.findById(application.getEmployeeId())
+                    .orElseThrow(() -> new RuntimeException("Employee not found"));
+
+            if (!currentUser.getName().equalsIgnoreCase(applicationOwner.getManager())) {
+                throw new RuntimeException("Manager can only reject own team applications");
+            }
+        }
+
         application.setStatus("Rejected");
-        application.setManagerStatus(
-                "Pending".equalsIgnoreCase(application.getManagerStatus())
-                        ? "Rejected"
-                        : application.getManagerStatus());
-        application.setAdminStatus("Rejected");
-        application.setReviewedBy(request.reviewedBy());
         application.setReviewComment(request.reviewComment());
+        application.setReviewedBy(request.reviewedBy());
+
+        if ("Pending".equalsIgnoreCase(application.getManagerStatus())) {
+            application.setManagerStatus("Rejected");
+        }
+
+        application.setAdminStatus("Rejected");
 
         return applicationRepository.save(application);
     }
