@@ -32,7 +32,11 @@ function AppShell() {
   const [employeeLoading, setEmployeeLoading] = useState(false);
 
   useEffect(() => {
-    async function loadEmployees() {
+    async function loadEmployeesForAdminOnly() {
+      if (!isAdmin) {
+        return;
+      }
+
       try {
         setEmployeeLoading(true);
         setEmployeeLoadError("");
@@ -49,8 +53,8 @@ function AppShell() {
       }
     }
 
-    loadEmployees();
-  }, [dispatch]);
+    loadEmployeesForAdminOnly();
+  }, [dispatch, isAdmin]);
 
   return (
     <PageLayout
@@ -64,7 +68,7 @@ function AppShell() {
         </p>
       )}
 
-      {employeeLoadError && (
+      {employeeLoadError && isAdmin && (
         <p style={{ marginBottom: 12, color: "red", fontSize: 12 }}>
           {employeeLoadError}
         </p>

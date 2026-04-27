@@ -1,18 +1,23 @@
 import { createSlice } from "@reduxjs/toolkit";
 
+const savedToken = localStorage.getItem("token");
+
 const authSlice = createSlice({
   name: "auth",
   initialState: {
     selectedUserId: 1,
     currentUser: null,
-    token: localStorage.getItem("token") || null,
-    isAuthenticated: !!localStorage.getItem("token"),
+    token: savedToken || null,
+    isAuthenticated: !!savedToken,
   },
   reducers: {
     setSelectedUserId: (state, action) => {
       state.selectedUserId = action.payload;
     },
+
     loginSuccess: (state, action) => {
+      localStorage.removeItem("token");
+
       state.currentUser = action.payload.user;
       state.token = action.payload.token;
       state.isAuthenticated = true;
@@ -23,25 +28,31 @@ const authSlice = createSlice({
         state.selectedUserId = action.payload.user.id;
       }
     },
+
     restoreSession: (state, action) => {
+      const token = localStorage.getItem("token");
+
       state.currentUser = action.payload.user;
-      state.token = localStorage.getItem("token");
-      state.isAuthenticated = !!localStorage.getItem("token");
+      state.token = token;
+      state.isAuthenticated = !!token;
 
       if (action.payload.user?.id) {
         state.selectedUserId = action.payload.user.id;
       }
     },
+
     logout: (state) => {
+      localStorage.removeItem("token");
+
       state.currentUser = null;
       state.token = null;
       state.isAuthenticated = false;
       state.selectedUserId = 1;
-
-      localStorage.removeItem("token");
     },
   },
 });
 
-export const { setSelectedUserId, loginSuccess, restoreSession, logout } = authSlice.actions;
+export const { setSelectedUserId, loginSuccess, restoreSession, logout } =
+  authSlice.actions;
+
 export default authSlice.reducer;
