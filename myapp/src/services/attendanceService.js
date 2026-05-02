@@ -1,13 +1,21 @@
 import { get, post } from "./api";
 
-export async function fetchAttendance() {
-  return get("/attendance");
+export async function signIn() {
+  return post("/attendance/sign-in", {});
 }
 
-export async function signInAttendance(payload) {
-  return post("/attendance/sign-in", payload);
+export async function signOut() {
+  return post("/attendance/sign-out", {});
 }
 
-export async function signOutAttendance(payload) {
-  return post("/attendance/sign-out", payload);
+export async function fetchMyAttendance() {
+  return get("/attendance/me");
+}
+
+export async function fetchTeamAttendance() {
+  return get("/attendance/team");
+}
+
+export async function fetchAllAttendance() {
+  return get("/attendance/all");
 }

@@ -32,9 +32,7 @@ export default function Sidebar({ currentUser }) {
           {currentUser?.name || "Unknown User"}
         </div>
 
-        <div style={{ fontSize: 13, color: "#555" }}>
-          {role}
-        </div>
+        <div style={{ fontSize: 13, color: "#555" }}>{role}</div>
       </div>
 
       <NavLink to="/dashboard" style={({ isActive }) => linkStyle(isActive)}>
@@ -54,9 +52,15 @@ export default function Sidebar({ currentUser }) {
       </NavLink>
 
       {isAdmin && (
-        <NavLink to="/employees" style={({ isActive }) => linkStyle(isActive)}>
-          Employees
-        </NavLink>
+        <>
+          <NavLink to="/employees" style={({ isActive }) => linkStyle(isActive)}>
+            Employees
+          </NavLink>
+
+          <NavLink to="/audit" style={({ isActive }) => linkStyle(isActive)}>
+            Audit Logs
+          </NavLink>
+        </>
       )}
     </div>
   );

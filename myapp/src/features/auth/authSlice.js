@@ -32,12 +32,12 @@ const authSlice = createSlice({
     restoreSession: (state, action) => {
       const token = localStorage.getItem("token");
 
-      state.currentUser = action.payload.user;
+      state.currentUser = action.payload;
       state.token = token;
       state.isAuthenticated = !!token;
 
-      if (action.payload.user?.id) {
-        state.selectedUserId = action.payload.user.id;
+      if (action.payload?.id) {
+        state.selectedUserId = action.payload.id;
       }
     },
 
@@ -52,7 +52,11 @@ const authSlice = createSlice({
   },
 });
 
-export const { setSelectedUserId, loginSuccess, restoreSession, logout } =
-  authSlice.actions;
+export const {
+  setSelectedUserId,
+  loginSuccess,
+  restoreSession,
+  logout,
+} = authSlice.actions;
 
 export default authSlice.reducer;

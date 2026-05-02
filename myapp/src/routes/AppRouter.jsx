@@ -8,12 +8,15 @@ import EmployeeProfile from "../pages/EmployeeProfile";
 import Applications from "../pages/Applications";
 import Attendance from "../pages/Attendance";
 import Employees from "../pages/Employees";
+import AuditLogs from "../pages/AuditLogs";
 import Login from "../pages/Login";
 
 import ProtectedRoute from "./ProtectedRoute";
 
 import { setEmployees } from "../features/employees/employeeSlice";
-import { fetchEmployees } from "../services/employeeService";
+import { fetchEmployees, fetchMyProfile } from "../services/employeeService";
+
+import { restoreSession } from "../features/auth/authSlice";
 
 import {
   selectCurrentUser,
@@ -28,8 +31,31 @@ function AppShell() {
   const currentUser = useSelector(selectCurrentUser);
   const isAdmin = useSelector(selectIsAdmin);
 
+  const [authLoading, setAuthLoading] = useState(true);
   const [employeeLoadError, setEmployeeLoadError] = useState("");
   const [employeeLoading, setEmployeeLoading] = useState(false);
+
+  useEffect(() => {
+    async function restoreUserFromToken() {
+      const token = localStorage.getItem("token");
+
+      if (!token) {
+        setAuthLoading(false);
+        return;
+      }
+
+      try {
+        const user = await fetchMyProfile();
+        dispatch(restoreSession(user));
+      } catch (error) {
+        localStorage.removeItem("token");
+      } finally {
+        setAuthLoading(false);
+      }
+    }
+
+    restoreUserFromToken();
+  }, [dispatch]);
 
   useEffect(() => {
     async function loadEmployeesForAdminOnly() {
@@ -53,15 +79,17 @@ function AppShell() {
       }
     }
 
-    loadEmployeesForAdminOnly();
-  }, [dispatch, isAdmin]);
+    if (!authLoading) {
+      loadEmployeesForAdminOnly();
+    }
+  }, [dispatch, isAdmin, authLoading]);
+
+  if (authLoading) {
+    return <p style={{ padding: 20 }}>Loading user...</p>;
+  }
 
   return (
-    <PageLayout
-      currentUser={currentUser}
-      isAdmin={isAdmin}
-      employees={employees}
-    >
+    <PageLayout currentUser={currentUser} isAdmin={isAdmin} employees={employees}>
       {employeeLoading && (
         <p style={{ marginBottom: 12, color: "#555" }}>
           Loading employees...
@@ -90,6 +118,15 @@ function AppShell() {
           element={
             <ProtectedRoute isAllowed={isAdmin}>
               <Employees />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/audit"
+          element={
+            <ProtectedRoute isAllowed={isAdmin}>
+              <AuditLogs />
             </ProtectedRoute>
           }
         />

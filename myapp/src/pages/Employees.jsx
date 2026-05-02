@@ -1,23 +1,38 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import React, { useEffect, useState } from "react";
+import { useSelector } from "react-redux";
 
 import Card from "../components/common/Card";
 import StatusBadge from "../components/common/StatusBadge";
 import { styles } from "../utils/styles";
 
-import { setEmployees } from "../features/employees/employeeSlice";
 import { selectIsAdmin } from "../features/auth/selectors";
-import { fetchEmployees, createEmployee } from "../services/employeeService";
+
+import {
+  fetchEmployeesPage,
+  createEmployee,
+  resetEmployeePassword,
+} from "../services/employeeService";
 
 export default function Employees() {
-  const dispatch = useDispatch();
-
-  const employees = useSelector((state) => state.employees.list);
   const isAdmin = useSelector(selectIsAdmin);
+
+  const [employees, setEmployees] = useState([]);
+
+  const [page, setPage] = useState(0);
+  const [size, setSize] = useState(20);
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState("");
+
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalElements, setTotalElements] = useState(0);
+  const [numberOfElements, setNumberOfElements] = useState(0);
 
   const [loading, setLoading] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [resettingId, setResettingId] = useState(null);
+
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
   const [form, setForm] = useState({
     employeeCode: "",
@@ -33,20 +48,22 @@ export default function Employees() {
     status: "Active",
   });
 
-  const sortedEmployees = useMemo(() => {
-    return [...employees].sort((a, b) => (a.id || 0) - (b.id || 0));
-  }, [employees]);
-
-  async function loadEmployees() {
+  async function loadEmployees(targetPage = page) {
     try {
       setLoading(true);
       setError("");
 
-      const data = await fetchEmployees();
+      const response = await fetchEmployeesPage({
+        page: targetPage,
+        size,
+        search,
+      });
 
-      if (Array.isArray(data)) {
-        dispatch(setEmployees(data));
-      }
+      setEmployees(Array.isArray(response.content) ? response.content : []);
+      setTotalPages(response.totalPages || 0);
+      setTotalElements(response.totalElements || 0);
+      setNumberOfElements(response.numberOfElements || 0);
+      setPage(response.number || targetPage);
     } catch (err) {
       setError("Failed to load employees.");
     } finally {
@@ -55,8 +72,10 @@ export default function Employees() {
   }
 
   useEffect(() => {
-    loadEmployees();
-  }, []);
+    if (isAdmin) {
+      loadEmployees(0);
+    }
+  }, [isAdmin, size, search]);
 
   function updateField(field, value) {
     setForm((prev) => ({
@@ -81,14 +100,17 @@ export default function Employees() {
     e.preventDefault();
 
     const validationError = validateForm();
+
     if (validationError) {
       setError(validationError);
+      setSuccess("");
       return;
     }
 
     try {
       setCreating(true);
       setError("");
+      setSuccess("");
 
       const payload = {
         employeeCode: form.employeeCode.trim(),
@@ -96,11 +118,10 @@ export default function Employees() {
         email: form.email.trim().toLowerCase(),
         password: form.password,
         role: form.role,
-        department: form.department,
-        designation: form.designation,
-        manager: form.manager,
-        joinDate:
-          form.joinDate || new Date().toISOString().split("T")[0],
+        department: form.department.trim(),
+        designation: form.designation.trim(),
+        manager: form.manager.trim(),
+        joinDate: form.joinDate || new Date().toISOString().split("T")[0],
         leavesRemaining: Number(form.leavesRemaining || 10),
         status: form.status || "Active",
       };
@@ -121,13 +142,67 @@ export default function Employees() {
         status: "Active",
       });
 
-      await loadEmployees();
-
-      alert("Employee created successfully.");
+      setSuccess("Employee created successfully.");
+      await loadEmployees(0);
     } catch (err) {
       setError("Failed to create employee. Check duplicate email or employee code.");
     } finally {
       setCreating(false);
+    }
+  }
+
+  async function handleResetPassword(employee) {
+    const newPassword = window.prompt(
+      `Enter new password for ${employee.name}:`,
+      "emp123"
+    );
+
+    if (!newPassword) return;
+
+    if (newPassword.trim().length < 6) {
+      setError("Password must be at least 6 characters.");
+      setSuccess("");
+      return;
+    }
+
+    try {
+      setResettingId(employee.id);
+      setError("");
+      setSuccess("");
+
+      await resetEmployeePassword(employee.id, {
+        newPassword: newPassword.trim(),
+      });
+
+      setSuccess(`Password reset successfully for ${employee.name}.`);
+    } catch (err) {
+      setError("Failed to reset password.");
+    } finally {
+      setResettingId(null);
+    }
+  }
+
+  function handleSearchSubmit(e) {
+    e.preventDefault();
+    setPage(0);
+    setSearch(searchInput.trim());
+  }
+
+  function handleClearSearch() {
+    setSearchInput("");
+    setSearch("");
+    setPage(0);
+  }
+
+  function goToPreviousPage() {
+    if (page > 0) {
+      loadEmployees(page - 1);
+    }
+  }
+
+  function goToNextPage() {
+    if (page < totalPages - 1) {
+      loadEmployees(page + 1);
     }
   }
 
@@ -144,6 +219,12 @@ export default function Employees() {
       {error && (
         <p style={{ marginBottom: 12, color: "red", fontSize: 13 }}>
           {error}
+        </p>
+      )}
+
+      {success && (
+        <p style={{ marginBottom: 12, color: "green", fontSize: 13 }}>
+          {success}
         </p>
       )}
 
@@ -248,9 +329,7 @@ export default function Employees() {
                 type="number"
                 style={styles.input}
                 value={form.leavesRemaining}
-                onChange={(e) =>
-                  updateField("leavesRemaining", e.target.value)
-                }
+                onChange={(e) => updateField("leavesRemaining", e.target.value)}
               />
             </div>
 
@@ -277,7 +356,61 @@ export default function Employees() {
         </form>
       </Card>
 
-      <Card title={`Employees (${sortedEmployees.length})`}>
+      <Card title="Employees">
+        <form
+          onSubmit={handleSearchSubmit}
+          style={{
+            display: "flex",
+            gap: 10,
+            marginBottom: 16,
+            alignItems: "center",
+            flexWrap: "wrap",
+          }}
+        >
+          <input
+            style={{ ...styles.input, maxWidth: 320 }}
+            value={searchInput}
+            placeholder="Search by name, email, or department"
+            onChange={(e) => setSearchInput(e.target.value)}
+          />
+
+          <button type="submit" style={styles.primaryButton}>
+            Search
+          </button>
+
+          <button
+            type="button"
+            style={styles.secondaryButton}
+            onClick={handleClearSearch}
+          >
+            Clear
+          </button>
+
+          <select
+            style={{ ...styles.input, maxWidth: 120 }}
+            value={size}
+            onChange={(e) => {
+              setPage(0);
+              setSize(Number(e.target.value));
+            }}
+          >
+            <option value={10}>10 rows</option>
+            <option value={20}>20 rows</option>
+            <option value={50}>50 rows</option>
+          </select>
+        </form>
+
+        <div style={{ marginBottom: 12, fontSize: 13, color: "#555" }}>
+          Showing <strong>{numberOfElements}</strong> records on this page · Total
+          employees: <strong>{totalElements}</strong>
+          {search && (
+            <>
+              {" "}
+              · Search: <strong>{search}</strong>
+            </>
+          )}
+        </div>
+
         {loading && <p>Loading employees...</p>}
 
         <div style={{ overflowX: "auto" }}>
@@ -294,11 +427,12 @@ export default function Employees() {
                 <th style={styles.th}>Manager</th>
                 <th style={styles.th}>Leaves</th>
                 <th style={styles.th}>Status</th>
+                <th style={styles.th}>Actions</th>
               </tr>
             </thead>
 
             <tbody>
-              {sortedEmployees.map((employee) => (
+              {employees.map((employee) => (
                 <tr key={employee.id}>
                   <td style={styles.td}>{employee.id}</td>
                   <td style={styles.td}>{employee.employeeCode}</td>
@@ -312,10 +446,64 @@ export default function Employees() {
                   <td style={styles.td}>
                     <StatusBadge status={employee.status} />
                   </td>
+                  <td style={styles.td}>
+                    <button
+                      type="button"
+                      style={styles.secondaryButton}
+                      disabled={resettingId === employee.id}
+                      onClick={() => handleResetPassword(employee)}
+                    >
+                      {resettingId === employee.id
+                        ? "Resetting..."
+                        : "Reset Password"}
+                    </button>
+                  </td>
                 </tr>
               ))}
+
+              {!loading && employees.length === 0 && (
+                <tr>
+                  <td style={styles.td} colSpan={11}>
+                    No employees found.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
+        </div>
+
+        <div
+          style={{
+            display: "flex",
+            gap: 10,
+            alignItems: "center",
+            justifyContent: "space-between",
+            marginTop: 16,
+            flexWrap: "wrap",
+          }}
+        >
+          <button
+            type="button"
+            style={styles.secondaryButton}
+            disabled={page === 0 || loading}
+            onClick={goToPreviousPage}
+          >
+            Previous
+          </button>
+
+          <div style={{ fontSize: 13 }}>
+            Page <strong>{totalPages === 0 ? 0 : page + 1}</strong> of{" "}
+            <strong>{totalPages}</strong>
+          </div>
+
+          <button
+            type="button"
+            style={styles.secondaryButton}
+            disabled={page >= totalPages - 1 || loading}
+            onClick={goToNextPage}
+          >
+            Next
+          </button>
         </div>
       </Card>
     </div>

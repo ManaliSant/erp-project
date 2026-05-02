@@ -35,9 +35,12 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/api/auth/login").permitAll()
+
+                        .requestMatchers("/api/employees/**").authenticated()
                         .requestMatchers("/api/applications/**").authenticated()
                         .requestMatchers("/api/attendance/**").authenticated()
-                        .requestMatchers("/api/employees/**").authenticated()
+                        .requestMatchers("/api/audit/**").authenticated()
+
                         .anyRequest().authenticated())
 
                 .authenticationProvider(authenticationProvider())
@@ -49,7 +52,13 @@ public class SecurityConfig {
 
     @Bean
     public PasswordEncoder passwordEncoder() {
-        return Argon2PasswordEncoder.defaultsForSpringSecurity_v5_8();
+        // Lighter Argon2 settings for local development.
+        return new Argon2PasswordEncoder(
+                16,
+                32,
+                1,
+                1 << 12,
+                2);
     }
 
     @Bean

@@ -13,12 +13,18 @@ import lombok.*;
 public class AttendanceRecord {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private String id;
 
     private Long employeeId;
     private String employeeName;
-    private String date;
+    private String employeeEmail;
+    private String role;
+    private String department;
+    private String manager;
+
+    private String attendanceDate;
     private String signInTime;
     private String signOutTime;
+
+    private String status; // SIGNED_IN, SIGNED_OUT
 }

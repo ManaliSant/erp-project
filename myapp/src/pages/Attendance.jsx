@@ -1,63 +1,96 @@
 import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
+
 import Card from "../components/common/Card";
 import StatusBadge from "../components/common/StatusBadge";
 import { styles } from "../utils/styles";
+
+import { restoreSession } from "../features/auth/authSlice";
+
 import {
-  signInEmployeeLocal,
-  signOutEmployeeLocal,
-} from "../features/employees/employeeSlice";
-import { selectCurrentUser, selectIsAdmin } from "../features/auth/selectors";
+  selectCurrentUser,
+  selectIsAdmin,
+  selectIsManager,
+} from "../features/auth/selectors";
+
+import { fetchMyProfile } from "../services/employeeService";
+
 import {
-  fetchAttendance,
-  signInAttendance,
-  signOutAttendance,
+  signIn,
+  signOut,
+  fetchMyAttendance,
+  fetchTeamAttendance,
+  fetchAllAttendance,
 } from "../services/attendanceService";
 
 export default function Attendance() {
   const dispatch = useDispatch();
-  const employees = useSelector((state) => state.employees.list);
+
   const currentUser = useSelector(selectCurrentUser);
   const isAdmin = useSelector(selectIsAdmin);
+  const isManager = useSelector(selectIsManager);
 
-  const [attendanceError, setAttendanceError] = useState("");
-  const [attendanceLoading, setAttendanceLoading] = useState(false);
+  const [myAttendance, setMyAttendance] = useState([]);
+  const [teamAttendance, setTeamAttendance] = useState([]);
+  const [allAttendance, setAllAttendance] = useState([]);
+
+  const [loading, setLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
-  const [attendanceRecords, setAttendanceRecords] = useState([]);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
+  const isSignedIn = currentUser?.signedIn === true;
+
+  async function refreshCurrentUser() {
+    const user = await fetchMyProfile();
+    dispatch(restoreSession(user));
+  }
+
+  async function loadAttendance() {
+    try {
+      setLoading(true);
+      setError("");
+
+      const myData = await fetchMyAttendance();
+      setMyAttendance(Array.isArray(myData) ? myData : []);
+
+      if (isManager) {
+        const teamData = await fetchTeamAttendance();
+        setTeamAttendance(Array.isArray(teamData) ? teamData : []);
+      }
+
+      if (isAdmin) {
+        const allData = await fetchAllAttendance();
+        setAllAttendance(Array.isArray(allData) ? allData : []);
+      }
+    } catch (err) {
+      setError("Failed to load attendance.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function refreshEverything() {
+    await refreshCurrentUser();
+    await loadAttendance();
+  }
 
   useEffect(() => {
-    async function loadAttendance() {
-      try {
-        setAttendanceLoading(true);
-        setAttendanceError("");
-
-        const data = await fetchAttendance();
-        if (Array.isArray(data)) {
-          setAttendanceRecords(data);
-        }
-      } catch (error) {
-        setAttendanceError("Failed to load attendance from backend. Showing local employee status only.");
-      } finally {
-        setAttendanceLoading(false);
-      }
-    }
-
     loadAttendance();
-  }, []);
+  }, [isAdmin, isManager]);
 
   async function handleSignIn() {
     try {
       setActionLoading(true);
-      setAttendanceError("");
+      setError("");
+      setSuccess("");
 
-      await signInAttendance({
-        employeeId: currentUser.id,
-        employeeName: currentUser.name,
-      });
+      await signIn();
+      await refreshEverything();
 
-      dispatch(signInEmployeeLocal(currentUser.id));
-    } catch (error) {
-      setAttendanceError("Failed to sign in.");
+      setSuccess("Signed in successfully.");
+    } catch (err) {
+      setError("Sign in failed. You may already be signed in today.");
     } finally {
       setActionLoading(false);
     }
@@ -66,103 +99,148 @@ export default function Attendance() {
   async function handleSignOut() {
     try {
       setActionLoading(true);
-      setAttendanceError("");
+      setError("");
+      setSuccess("");
 
-      await signOutAttendance({
-        employeeId: currentUser.id,
-        employeeName: currentUser.name,
-      });
+      await signOut();
+      await refreshEverything();
 
-      dispatch(signOutEmployeeLocal(currentUser.id));
-    } catch (error) {
-      setAttendanceError("Failed to sign out.");
+      setSuccess("Signed out successfully.");
+    } catch (err) {
+      setError("Sign out failed. You may need to sign in first or already signed out.");
     } finally {
       setActionLoading(false);
     }
   }
 
+  function renderAttendanceTable(records) {
+    if (!records || records.length === 0) {
+      return <p style={{ color: "#666" }}>No attendance records found.</p>;
+    }
+
+    return (
+      <div style={{ overflowX: "auto" }}>
+        <table style={styles.table}>
+          <thead>
+            <tr>
+              <th style={styles.th}>Date</th>
+              <th style={styles.th}>Employee</th>
+              <th style={styles.th}>Email</th>
+              <th style={styles.th}>Role</th>
+              <th style={styles.th}>Department</th>
+              <th style={styles.th}>Manager</th>
+              <th style={styles.th}>Sign In</th>
+              <th style={styles.th}>Sign Out</th>
+              <th style={styles.th}>Status</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {records.map((record) => (
+              <tr key={record.id}>
+                <td style={styles.td}>{record.attendanceDate}</td>
+                <td style={styles.td}>{record.employeeName}</td>
+                <td style={styles.td}>{record.employeeEmail}</td>
+                <td style={styles.td}>{record.role}</td>
+                <td style={styles.td}>{record.department}</td>
+                <td style={styles.td}>{record.manager}</td>
+                <td style={styles.td}>{record.signInTime || "-"}</td>
+                <td style={styles.td}>{record.signOutTime || "-"}</td>
+                <td style={styles.td}>
+                  <StatusBadge status={record.status || "-"} />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  }
+
+  if (!currentUser) {
+    return (
+      <Card title="Attendance">
+        <p>Loading user...</p>
+      </Card>
+    );
+  }
+
   return (
-    <Card title="Attendance">
-      <div>
-        {attendanceLoading && (
-          <p style={{ marginBottom: 12, color: "#555" }}>Loading attendance...</p>
-        )}
+    <div>
+      {error && (
+        <p style={{ marginBottom: 12, color: "red", fontSize: 13 }}>
+          {error}
+        </p>
+      )}
 
-        {attendanceError && (
-          <p style={{ marginBottom: 12, color: "red", fontSize: 12 }}>
-            {attendanceError}
+      {success && (
+        <p style={{ marginBottom: 12, color: "green", fontSize: 13 }}>
+          {success}
+        </p>
+      )}
+
+      <Card title="My Attendance">
+        <div style={{ marginBottom: 16 }}>
+          <p style={{ margin: "0 0 6px 0" }}>
+            <strong>{currentUser.name}</strong>
           </p>
-        )}
 
-        <div style={{ marginBottom: 16, display: "flex", gap: 10 }}>
+          <p style={{ margin: 0, color: "#666", fontSize: 13 }}>
+            {currentUser.role} · {currentUser.department || "No department"}
+          </p>
+
+          <p style={{ marginTop: 8, fontSize: 13 }}>
+            Current Status:{" "}
+            <strong>{isSignedIn ? "SIGNED IN" : "SIGNED OUT"}</strong>
+          </p>
+        </div>
+
+        <div style={{ display: "flex", gap: 10, marginBottom: 18 }}>
           <button
+            type="button"
+            style={styles.successButton}
+            disabled={actionLoading || isSignedIn}
             onClick={handleSignIn}
-            style={styles.primaryButton}
-            disabled={actionLoading}
           >
             {actionLoading ? "Processing..." : "Sign In"}
           </button>
+
           <button
+            type="button"
+            style={styles.dangerButton}
+            disabled={actionLoading || !isSignedIn}
             onClick={handleSignOut}
-            style={styles.secondaryButton}
-            disabled={actionLoading}
           >
             {actionLoading ? "Processing..." : "Sign Out"}
           </button>
         </div>
 
-        <table style={styles.table}>
-          <thead>
-            <tr>
-              <th style={styles.th}>Employee</th>
-              <th style={styles.th}>Current Status</th>
-              <th style={styles.th}>Last Sign In</th>
-              <th style={styles.th}>Last Sign Out</th>
-            </tr>
-          </thead>
-          <tbody>
-            {(isAdmin ? employees : [currentUser]).map((emp) => (
-              <tr key={emp.id}>
-                <td style={styles.td}>{emp.name}</td>
-                <td style={styles.td}>
-                  <StatusBadge
-                    status={emp.signedIn ? "SignedIn" : "SignedOut"}
-                    label={emp.signedIn ? "Signed In" : "Signed Out"}
-                  />
-                </td>
-                <td style={styles.td}>{emp.lastSignIn || "-"}</td>
-                <td style={styles.td}>{emp.lastSignOut || "-"}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-
-        {attendanceRecords.length > 0 && (
-          <div style={{ marginTop: 24 }}>
-            <h3 style={{ marginBottom: 12 }}>Backend Attendance Records</h3>
-            <table style={styles.table}>
-              <thead>
-                <tr>
-                  <th style={styles.th}>Employee</th>
-                  <th style={styles.th}>Date</th>
-                  <th style={styles.th}>Sign In</th>
-                  <th style={styles.th}>Sign Out</th>
-                </tr>
-              </thead>
-              <tbody>
-                {attendanceRecords.map((record, index) => (
-                  <tr key={record.id || index}>
-                    <td style={styles.td}>{record.employeeName || "-"}</td>
-                    <td style={styles.td}>{record.date || "-"}</td>
-                    <td style={styles.td}>{record.signInTime || "-"}</td>
-                    <td style={styles.td}>{record.signOutTime || "-"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+        {loading ? (
+          <p>Loading attendance...</p>
+        ) : (
+          renderAttendanceTable(myAttendance)
         )}
-      </div>
-    </Card>
+      </Card>
+
+      {isManager && (
+        <Card title="Team Attendance">
+          {loading ? (
+            <p>Loading team attendance...</p>
+          ) : (
+            renderAttendanceTable(teamAttendance)
+          )}
+        </Card>
+      )}
+
+      {isAdmin && (
+        <Card title="All Attendance">
+          {loading ? (
+            <p>Loading all attendance...</p>
+          ) : (
+            renderAttendanceTable(allAttendance)
+          )}
+        </Card>
+      )}
+    </div>
   );
 }
