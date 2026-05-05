@@ -27,6 +27,7 @@ import {
   adminApproveApplicationRequest,
   rejectApplicationRequest,
   downloadLeaveApprovalPdf,
+  downloadReferenceLetterPdf,
 } from "../services/applicationService";
 
 export default function Applications() {
@@ -186,7 +187,7 @@ export default function Applications() {
     }
   }
 
-  async function handleDownloadPdf(app) {
+  async function handleDownloadLeavePdf(app) {
     try {
       setPdfLoadingId(app.id);
       setApiError("");
@@ -199,9 +200,30 @@ export default function Applications() {
     }
   }
 
+  async function handleDownloadReferenceLetter(app) {
+    try {
+      setPdfLoadingId(app.id);
+      setApiError("");
+
+      await downloadReferenceLetterPdf(app.id);
+    } catch (error) {
+      setApiError("Failed to download reference letter PDF.");
+    } finally {
+      setPdfLoadingId(null);
+    }
+  }
+
   function canDownloadLeavePdf(app) {
     return (
       app.type === "Leave" &&
+      app.status === "Approved" &&
+      app.pdfGenerated === true
+    );
+  }
+
+  function canDownloadReferenceLetterPdf(app) {
+    return (
+      app.type === "Reference Letter" &&
       app.status === "Approved" &&
       app.pdfGenerated === true
     );
@@ -333,6 +355,7 @@ export default function Applications() {
                 <tr key={app.id}>
                   <td style={styles.td}>
                     <div style={{ fontWeight: "bold" }}>{app.title}</div>
+
                     <div style={{ fontSize: 12, color: "#666" }}>
                       {app.description}
                     </div>
@@ -344,13 +367,32 @@ export default function Applications() {
                           ...styles.secondaryButton,
                           marginTop: 8,
                           padding: "6px 10px",
+                          display: "block",
                         }}
-                        onClick={() => handleDownloadPdf(app)}
+                        onClick={() => handleDownloadLeavePdf(app)}
                         disabled={pdfLoadingId === app.id}
                       >
                         {pdfLoadingId === app.id
                           ? "Downloading..."
                           : "Download Leave PDF"}
+                      </button>
+                    )}
+
+                    {canDownloadReferenceLetterPdf(app) && (
+                      <button
+                        type="button"
+                        style={{
+                          ...styles.secondaryButton,
+                          marginTop: 8,
+                          padding: "6px 10px",
+                          display: "block",
+                        }}
+                        onClick={() => handleDownloadReferenceLetter(app)}
+                        disabled={pdfLoadingId === app.id}
+                      >
+                        {pdfLoadingId === app.id
+                          ? "Downloading..."
+                          : "Download Reference Letter"}
                       </button>
                     )}
                   </td>

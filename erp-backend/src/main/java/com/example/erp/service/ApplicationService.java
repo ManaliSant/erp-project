@@ -25,6 +25,7 @@ public class ApplicationService {
     private final EmployeeRepository employeeRepository;
     private final AuditService auditService;
     private final LeaveApprovalPdfService leaveApprovalPdfService;
+    private final ReferenceLetterPdfService referenceLetterPdfService;
 
     private Employee getLoggedInEmployee(Authentication authentication) {
         String email = authentication.getName();
@@ -198,6 +199,13 @@ public class ApplicationService {
             application.setPdfGeneratedAt(LocalDateTime.now().withNano(0).toString().replace("T", " "));
         }
 
+        if ("Reference Letter".equalsIgnoreCase(application.getType())) {
+            String pdfPath = referenceLetterPdfService.generateReferenceLetterPdf(application, employee);
+            application.setPdfGenerated(true);
+            application.setPdfPath(pdfPath);
+            application.setPdfGeneratedAt(LocalDateTime.now().withNano(0).toString().replace("T", " "));
+        }
+
         HrApplication savedApplication = applicationRepository.save(application);
 
         auditService.log(
@@ -207,11 +215,15 @@ public class ApplicationService {
                 "Admin final approved application");
 
         if (Boolean.TRUE.equals(savedApplication.getPdfGenerated())) {
+            String action = "Reference Letter".equalsIgnoreCase(savedApplication.getType())
+                    ? "GENERATE_REFERENCE_LETTER_PDF"
+                    : "GENERATE_LEAVE_APPROVAL_PDF";
+
             auditService.log(
                     admin.getEmail(),
-                    "GENERATE_LEAVE_APPROVAL_PDF",
+                    action,
                     "APPLICATION_ID:" + savedApplication.getId(),
-                    "Generated leave approval PDF");
+                    "Generated PDF for " + savedApplication.getType());
         }
 
         return savedApplication;

@@ -22,11 +22,11 @@ export async function rejectApplicationRequest(applicationId, payload) {
   return patch(`/applications/${applicationId}/reject`, payload);
 }
 
-export async function downloadLeaveApprovalPdf(applicationId) {
+async function downloadApplicationPdf(applicationId, endpoint, filenamePrefix) {
   const token = localStorage.getItem("token");
 
   const response = await fetch(
-    `${BASE_URL}/documents/applications/${applicationId}/leave-approval`,
+    `${BASE_URL}/documents/applications/${applicationId}/${endpoint}`,
     {
       method: "GET",
       headers: {
@@ -36,7 +36,7 @@ export async function downloadLeaveApprovalPdf(applicationId) {
   );
 
   if (!response.ok) {
-    throw new Error("Failed to download leave approval PDF.");
+    throw new Error("Failed to download PDF.");
   }
 
   const blob = await response.blob();
@@ -44,11 +44,19 @@ export async function downloadLeaveApprovalPdf(applicationId) {
 
   const link = document.createElement("a");
   link.href = downloadUrl;
-  link.download = `leave-approval-${applicationId}.pdf`;
+  link.download = `${filenamePrefix}-${applicationId}.pdf`;
 
   document.body.appendChild(link);
   link.click();
   link.remove();
 
   window.URL.revokeObjectURL(downloadUrl);
+}
+
+export async function downloadLeaveApprovalPdf(applicationId) {
+  return downloadApplicationPdf(applicationId, "leave-approval", "leave-approval");
+}
+
+export async function downloadReferenceLetterPdf(applicationId) {
+  return downloadApplicationPdf(applicationId, "reference-letter", "reference-letter");
 }

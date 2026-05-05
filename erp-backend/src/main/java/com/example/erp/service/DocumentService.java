@@ -27,6 +27,19 @@ public class DocumentService {
     }
 
     public Resource downloadLeaveApprovalPdf(String applicationId, Authentication authentication) {
+        return downloadApplicationPdf(applicationId, authentication, "Leave", "DOWNLOAD_LEAVE_APPROVAL_PDF");
+    }
+
+    public Resource downloadReferenceLetterPdf(String applicationId, Authentication authentication) {
+        return downloadApplicationPdf(applicationId, authentication, "Reference Letter",
+                "DOWNLOAD_REFERENCE_LETTER_PDF");
+    }
+
+    private Resource downloadApplicationPdf(
+            String applicationId,
+            Authentication authentication,
+            String expectedType,
+            String auditAction) {
         Employee currentUser = getLoggedInEmployee(authentication);
 
         HrApplication application = applicationRepository.findById(applicationId)
@@ -35,7 +48,7 @@ public class DocumentService {
         Employee applicationOwner = employeeRepository.findById(application.getEmployeeId())
                 .orElseThrow(() -> new BadRequestException("Employee not found"));
 
-        validateAccess(currentUser, applicationOwner, application);
+        validateAccess(currentUser, applicationOwner, application, expectedType);
 
         if (!Boolean.TRUE.equals(application.getPdfGenerated()) || application.getPdfPath() == null
                 || application.getPdfPath().isBlank()) {
@@ -50,20 +63,24 @@ public class DocumentService {
 
         auditService.log(
                 currentUser.getEmail(),
-                "DOWNLOAD_LEAVE_APPROVAL_PDF",
+                auditAction,
                 "APPLICATION_ID:" + application.getId(),
-                "Downloaded leave approval PDF");
+                "Downloaded PDF for " + application.getType());
 
         return new FileSystemResource(file);
     }
 
-    private void validateAccess(Employee currentUser, Employee applicationOwner, HrApplication application) {
+    private void validateAccess(
+            Employee currentUser,
+            Employee applicationOwner,
+            HrApplication application,
+            String expectedType) {
         if (!"Approved".equalsIgnoreCase(application.getStatus())) {
             throw new BadRequestException("PDF is available only for approved applications");
         }
 
-        if (!"Leave".equalsIgnoreCase(application.getType())) {
-            throw new BadRequestException("This PDF is only available for leave applications");
+        if (!expectedType.equalsIgnoreCase(application.getType())) {
+            throw new BadRequestException("This PDF is only available for " + expectedType + " applications");
         }
 
         if ("ADMIN".equalsIgnoreCase(currentUser.getRole())) {
@@ -82,6 +99,6 @@ public class DocumentService {
             return;
         }
 
-        throw new BadRequestException("You can download only your own leave approval PDF");
+        throw new BadRequestException("You can download only your own application PDF");
     }
 }

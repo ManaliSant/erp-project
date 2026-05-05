@@ -30,4 +30,17 @@ public class DocumentController {
                 .contentType(MediaType.APPLICATION_PDF)
                 .body(resource);
     }
+
+    @GetMapping("/applications/{id}/reference-letter")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'EMPLOYEE')")
+    public ResponseEntity<Resource> downloadReferenceLetterPdf(
+            @PathVariable String id,
+            Authentication authentication) {
+        Resource resource = documentService.downloadReferenceLetterPdf(id, authentication);
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=reference-letter-" + id + ".pdf")
+                .contentType(MediaType.APPLICATION_PDF)
+                .body(resource);
+    }
 }
