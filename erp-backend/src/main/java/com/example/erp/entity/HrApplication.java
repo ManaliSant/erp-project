@@ -27,13 +27,10 @@ public class HrApplication {
     private String dateRange;
     private Integer days;
 
-    // Overall status:
-    // Pending, Manager Approved, Approved, Rejected
     private String status;
 
-    // Stage statuses
-    private String managerStatus; // Pending, Approved, Rejected, Not Required
-    private String adminStatus; // Pending, Approved, Rejected
+    private String managerStatus;
+    private String adminStatus;
 
     private String reviewedBy;
 
@@ -44,4 +41,8 @@ public class HrApplication {
     private String adminReviewedBy;
 
     private String createdAt;
+
+    private Boolean pdfGenerated;
+    private String pdfPath;
+    private String pdfGeneratedAt;
 }

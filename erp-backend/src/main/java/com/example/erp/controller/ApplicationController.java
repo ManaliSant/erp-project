@@ -46,8 +46,9 @@ public class ApplicationController {
     @PreAuthorize("hasRole('ADMIN')")
     public HrApplication adminApproveApplication(
             @PathVariable String id,
-            @RequestBody ReviewRequest request) {
-        return applicationService.adminApproveApplication(id, request);
+            @RequestBody ReviewRequest request,
+            Authentication authentication) {
+        return applicationService.adminApproveApplication(id, request, authentication);
     }
 
     @PatchMapping("/{id}/reject")

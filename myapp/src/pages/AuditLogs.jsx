@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 
 import Card from "../components/common/Card";
 import { styles } from "../utils/styles";
-import { fetchAuditLogs } from "../services/auditService";
+import { fetchAuditLogs, downloadAuditLogsCsv } from "../services/auditService";
 
 export default function AuditLogs() {
   const [logs, setLogs] = useState([]);
@@ -17,6 +17,7 @@ export default function AuditLogs() {
   const [numberOfElements, setNumberOfElements] = useState(0);
 
   const [loading, setLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [error, setError] = useState("");
 
   async function loadAuditLogs(targetPage = page) {
@@ -70,6 +71,19 @@ export default function AuditLogs() {
     }
   }
 
+  async function handleExportCsv() {
+    try {
+      setExporting(true);
+      setError("");
+
+      await downloadAuditLogsCsv(search);
+    } catch (err) {
+      setError("Failed to export audit logs.");
+    } finally {
+      setExporting(false);
+    }
+  }
+
   return (
     <div>
       {error && (
@@ -106,6 +120,15 @@ export default function AuditLogs() {
             onClick={handleClearSearch}
           >
             Clear
+          </button>
+
+          <button
+            type="button"
+            style={styles.secondaryButton}
+            onClick={handleExportCsv}
+            disabled={exporting}
+          >
+            {exporting ? "Exporting..." : "Export CSV"}
           </button>
 
           <select

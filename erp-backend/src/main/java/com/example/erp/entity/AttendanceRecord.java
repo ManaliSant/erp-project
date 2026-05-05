@@ -3,6 +3,9 @@ package com.example.erp.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.LocalDate;
+import java.time.LocalTime;
+
 @Entity
 @Table(name = "attendance_records")
 @Getter
@@ -22,9 +25,9 @@ public class AttendanceRecord {
     private String department;
     private String manager;
 
-    private String attendanceDate;
-    private String signInTime;
-    private String signOutTime;
+    private LocalDate attendanceDate;
+    private LocalTime signInTime;
+    private LocalTime signOutTime;
 
     private String status; // SIGNED_IN, SIGNED_OUT
 }

@@ -8,11 +8,12 @@ import com.example.erp.repository.EmployeeRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -29,11 +30,12 @@ public class AttendanceService {
                 .orElseThrow(() -> new BadRequestException("Employee not found"));
     }
 
+    @Transactional
     public AttendanceRecord signIn(Authentication authentication) {
         Employee employee = getLoggedInEmployee(authentication);
 
-        String today = LocalDate.now().toString();
-        String now = LocalTime.now().withNano(0).format(DateTimeFormatter.ISO_LOCAL_TIME);
+        LocalDate today = LocalDate.now();
+        LocalTime now = LocalTime.now().withNano(0);
 
         AttendanceRecord record = attendanceRecordRepository
                 .findByEmployeeIdAndAttendanceDate(employee.getId(), today)
@@ -49,7 +51,7 @@ public class AttendanceService {
 
         if (record == null) {
             record = AttendanceRecord.builder()
-                    .id("ATT-" + System.currentTimeMillis())
+                    .id("ATT-" + UUID.randomUUID())
                     .employeeId(employee.getId())
                     .employeeName(employee.getName())
                     .employeeEmail(employee.getEmail())
@@ -58,17 +60,17 @@ public class AttendanceService {
                     .manager(employee.getManager())
                     .attendanceDate(today)
                     .signInTime(now)
-                    .signOutTime("")
+                    .signOutTime(null)
                     .status("SIGNED_IN")
                     .build();
         } else {
             record.setSignInTime(now);
-            record.setSignOutTime("");
+            record.setSignOutTime(null);
             record.setStatus("SIGNED_IN");
         }
 
         employee.setSignedIn(true);
-        employee.setLastSignIn(now);
+        employee.setLastSignIn(now.toString());
         employeeRepository.save(employee);
 
         AttendanceRecord savedRecord = attendanceRecordRepository.save(record);
@@ -82,11 +84,12 @@ public class AttendanceService {
         return savedRecord;
     }
 
+    @Transactional
     public AttendanceRecord signOut(Authentication authentication) {
         Employee employee = getLoggedInEmployee(authentication);
 
-        String today = LocalDate.now().toString();
-        String now = LocalTime.now().withNano(0).format(DateTimeFormatter.ISO_LOCAL_TIME);
+        LocalDate today = LocalDate.now();
+        LocalTime now = LocalTime.now().withNano(0);
 
         AttendanceRecord record = attendanceRecordRepository
                 .findByEmployeeIdAndAttendanceDate(employee.getId(), today)
@@ -100,7 +103,7 @@ public class AttendanceService {
         record.setStatus("SIGNED_OUT");
 
         employee.setSignedIn(false);
-        employee.setLastSignOut(now);
+        employee.setLastSignOut(now.toString());
         employeeRepository.save(employee);
 
         AttendanceRecord savedRecord = attendanceRecordRepository.save(record);

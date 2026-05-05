@@ -8,6 +8,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -38,5 +39,52 @@ public class AuditService {
                         search,
                         search,
                         pageable);
+    }
+
+    public String exportAuditLogsCsv(String search) {
+        List<AuditLog> logs;
+
+        if (search == null || search.isBlank()) {
+            logs = auditLogRepository.findAll();
+        } else {
+            logs = auditLogRepository
+                    .findByActorEmailContainingIgnoreCaseOrActionContainingIgnoreCaseOrTargetContainingIgnoreCase(
+                            search,
+                            search,
+                            search,
+                            Pageable.unpaged())
+                    .getContent();
+        }
+
+        StringBuilder csv = new StringBuilder();
+
+        csv.append("ID,Actor Email,Action,Target,Details,Timestamp\n");
+
+        for (AuditLog log : logs) {
+            csv.append(safeCsv(log.getId()))
+                    .append(",")
+                    .append(safeCsv(log.getActorEmail()))
+                    .append(",")
+                    .append(safeCsv(log.getAction()))
+                    .append(",")
+                    .append(safeCsv(log.getTarget()))
+                    .append(",")
+                    .append(safeCsv(log.getDetails()))
+                    .append(",")
+                    .append(safeCsv(log.getTimestamp()))
+                    .append("\n");
+        }
+
+        return csv.toString();
+    }
+
+    private String safeCsv(Object value) {
+        if (value == null) {
+            return "";
+        }
+
+        String text = value.toString().replace("\"", "\"\"");
+
+        return "\"" + text + "\"";
     }
 }

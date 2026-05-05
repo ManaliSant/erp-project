@@ -3,6 +3,7 @@ package com.example.erp.repository;
 import com.example.erp.entity.AttendanceRecord;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -12,5 +13,5 @@ public interface AttendanceRecordRepository extends JpaRepository<AttendanceReco
 
     List<AttendanceRecord> findByManager(String manager);
 
-    Optional<AttendanceRecord> findByEmployeeIdAndAttendanceDate(Long employeeId, String attendanceDate);
+    Optional<AttendanceRecord> findByEmployeeIdAndAttendanceDate(Long employeeId, LocalDate attendanceDate);
 }

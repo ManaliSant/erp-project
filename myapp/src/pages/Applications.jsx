@@ -26,6 +26,7 @@ import {
   managerApproveApplicationRequest,
   adminApproveApplicationRequest,
   rejectApplicationRequest,
+  downloadLeaveApprovalPdf,
 } from "../services/applicationService";
 
 export default function Applications() {
@@ -56,6 +57,7 @@ export default function Applications() {
   const [pageLoading, setPageLoading] = useState(false);
   const [apiError, setApiError] = useState("");
   const [actionLoadingId, setActionLoadingId] = useState(null);
+  const [pdfLoadingId, setPdfLoadingId] = useState(null);
 
   useEffect(() => {
     async function loadApplications() {
@@ -182,6 +184,27 @@ export default function Applications() {
     } finally {
       setActionLoadingId(null);
     }
+  }
+
+  async function handleDownloadPdf(app) {
+    try {
+      setPdfLoadingId(app.id);
+      setApiError("");
+
+      await downloadLeaveApprovalPdf(app.id);
+    } catch (error) {
+      setApiError("Failed to download leave approval PDF.");
+    } finally {
+      setPdfLoadingId(null);
+    }
+  }
+
+  function canDownloadLeavePdf(app) {
+    return (
+      app.type === "Leave" &&
+      app.status === "Approved" &&
+      app.pdfGenerated === true
+    );
   }
 
   return (
@@ -313,6 +336,23 @@ export default function Applications() {
                     <div style={{ fontSize: 12, color: "#666" }}>
                       {app.description}
                     </div>
+
+                    {canDownloadLeavePdf(app) && (
+                      <button
+                        type="button"
+                        style={{
+                          ...styles.secondaryButton,
+                          marginTop: 8,
+                          padding: "6px 10px",
+                        }}
+                        onClick={() => handleDownloadPdf(app)}
+                        disabled={pdfLoadingId === app.id}
+                      >
+                        {pdfLoadingId === app.id
+                          ? "Downloading..."
+                          : "Download Leave PDF"}
+                      </button>
+                    )}
                   </td>
 
                   <td style={styles.td}>{app.employeeName}</td>
@@ -393,6 +433,14 @@ export default function Applications() {
                   </td>
                 </tr>
               ))}
+
+              {visibleApplications.length === 0 && (
+                <tr>
+                  <td style={styles.td} colSpan={8}>
+                    No applications found.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
