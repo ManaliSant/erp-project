@@ -37,6 +37,9 @@ public class HrApplication {
     @Column(length = 2000)
     private String reviewComment;
 
+    @Column(length = 3000)
+    private String referenceText;
+
     private String managerReviewedBy;
     private String adminReviewedBy;
 

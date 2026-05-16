@@ -99,6 +99,7 @@ public class ApplicationService {
                 .adminStatus(adminStatus)
                 .reviewedBy("")
                 .reviewComment("")
+                .referenceText("")
                 .managerReviewedBy("")
                 .adminReviewedBy("")
                 .createdAt(LocalDateTime.now().withNano(0).toString().replace("T", " "))
@@ -200,6 +201,14 @@ public class ApplicationService {
         }
 
         if ("Reference Letter".equalsIgnoreCase(application.getType())) {
+            String referenceText = request.referenceText();
+
+            if (referenceText == null || referenceText.isBlank()) {
+                throw new BadRequestException("Reference letter content is required");
+            }
+
+            application.setReferenceText(referenceText);
+
             String pdfPath = referenceLetterPdfService.generateReferenceLetterPdf(application, employee);
             application.setPdfGenerated(true);
             application.setPdfPath(pdfPath);
