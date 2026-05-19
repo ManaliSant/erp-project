@@ -46,11 +46,7 @@ export default function Dashboard() {
   }, []);
 
   const visibleApplications = useMemo(() => {
-    if (isAdmin) {
-      return applications;
-    }
-
-    if (isManager) {
+    if (isAdmin || isManager) {
       return applications;
     }
 
@@ -96,6 +92,10 @@ export default function Dashboard() {
             <StatBox label="Managers" value={stats?.totalManagers ?? "-"} />
             <StatBox label="Employees" value={stats?.totalRegularEmployees ?? "-"} />
             <StatBox label="Signed In Now" value={signedInEmployees} />
+            <StatBox label="Today Attendance" value={stats?.todayAttendanceCount ?? 0} />
+            <StatBox label="Active Sessions" value={stats?.activeAttendanceSessions ?? 0} />
+            <StatBox label="Attendance Records" value={stats?.totalAttendanceRecords ?? 0} />
+            <StatBox label="Total Worked Hours" value={stats?.totalWorkedHours ?? "0h 0m"} />
             <StatBox label="Pending Requests" value={pendingApplications} />
             <StatBox label="Approved Requests" value={approvedApplications} />
             <StatBox label="Rejected Requests" value={rejectedApplications} />
@@ -148,22 +148,32 @@ export default function Dashboard() {
 
             <div style={styles.listItem}>
               <div>
+                <div style={{ fontWeight: "bold" }}>Attendance Hours</div>
+                <div style={{ fontSize: 13, color: "#555" }}>
+                  Total completed working time
+                </div>
+              </div>
+              <strong>{stats?.totalWorkedHours ?? "0h 0m"}</strong>
+            </div>
+
+            <div style={styles.listItem}>
+              <div>
+                <div style={{ fontWeight: "bold" }}>Today Attendance</div>
+                <div style={{ fontSize: 13, color: "#555" }}>
+                  Attendance records created today
+                </div>
+              </div>
+              <strong>{stats?.todayAttendanceCount ?? 0}</strong>
+            </div>
+
+            <div style={styles.listItem}>
+              <div>
                 <div style={{ fontWeight: "bold" }}>Audit Events</div>
                 <div style={{ fontSize: 13, color: "#555" }}>
                   Logged system actions
                 </div>
               </div>
               <strong>{totalAuditLogs}</strong>
-            </div>
-
-            <div style={styles.listItem}>
-              <div>
-                <div style={{ fontWeight: "bold" }}>Currently Signed In</div>
-                <div style={{ fontSize: 13, color: "#555" }}>
-                  Employees signed in through attendance
-                </div>
-              </div>
-              <strong>{signedInEmployees}</strong>
             </div>
           </div>
         </Card>

@@ -10,5 +10,10 @@ public record DashboardStatsResponse(
         long approvedApplications,
         long rejectedApplications,
         long generatedPdfs,
-        long totalAuditLogs) {
+        long totalAuditLogs,
+        long todayAttendanceCount,
+        long activeAttendanceSessions,
+        long totalAttendanceRecords,
+        long totalWorkedMinutes,
+        String totalWorkedHours) {
 }
