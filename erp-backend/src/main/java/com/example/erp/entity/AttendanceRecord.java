@@ -29,5 +29,8 @@ public class AttendanceRecord {
     private LocalTime signInTime;
     private LocalTime signOutTime;
 
+    private Long workedMinutes;
+    private String workedHours;
+
     private String status; // SIGNED_IN, SIGNED_OUT
 }

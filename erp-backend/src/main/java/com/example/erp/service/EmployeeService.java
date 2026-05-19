@@ -4,6 +4,7 @@ import com.example.erp.dto.ChangePasswordRequest;
 import com.example.erp.dto.CreateEmployeeRequest;
 import com.example.erp.dto.EmployeeResponse;
 import com.example.erp.dto.ResetPasswordRequest;
+import com.example.erp.dto.UpdateEmployeeStatusRequest;
 import com.example.erp.entity.Employee;
 import com.example.erp.exception.BadRequestException;
 import com.example.erp.repository.EmployeeRepository;
@@ -13,8 +14,10 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -23,6 +26,12 @@ public class EmployeeService {
     private final EmployeeRepository employeeRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuditService auditService;
+
+    private static final Set<String> VALID_STATUSES = Set.of(
+            "Active",
+            "Inactive",
+            "Resigned",
+            "Terminated");
 
     private Employee getLoggedInEmployee(Authentication authentication) {
         String email = authentication.getName();
@@ -72,6 +81,7 @@ public class EmployeeService {
         return EmployeeResponse.from(getLoggedInEmployee(authentication));
     }
 
+    @Transactional
     public EmployeeResponse createEmployee(CreateEmployeeRequest request) {
         if (request.email() == null || request.email().isBlank()) {
             throw new BadRequestException("Email is required");
@@ -115,7 +125,10 @@ public class EmployeeService {
         return EmployeeResponse.from(savedEmployee);
     }
 
-    public EmployeeResponse adminResetPassword(Authentication authentication, Long employeeId,
+    @Transactional
+    public EmployeeResponse adminResetPassword(
+            Authentication authentication,
+            Long employeeId,
             ResetPasswordRequest request) {
         if (request.newPassword() == null || request.newPassword().isBlank()) {
             throw new BadRequestException("New password is required");
@@ -141,6 +154,7 @@ public class EmployeeService {
         return EmployeeResponse.from(savedEmployee);
     }
 
+    @Transactional
     public String changeOwnPassword(Authentication authentication, ChangePasswordRequest request) {
         Employee employee = getLoggedInEmployee(authentication);
 
@@ -170,5 +184,64 @@ public class EmployeeService {
                 "User changed own password");
 
         return "Password changed successfully";
+    }
+
+    @Transactional
+    public EmployeeResponse updateEmployeeStatus(
+            Authentication authentication,
+            Long employeeId,
+            UpdateEmployeeStatusRequest request) {
+        Employee admin = getLoggedInEmployee(authentication);
+
+        if (!"ADMIN".equalsIgnoreCase(admin.getRole())) {
+            throw new BadRequestException("Only admin can update employee status");
+        }
+
+        if (request.status() == null || request.status().isBlank()) {
+            throw new BadRequestException("Status is required");
+        }
+
+        String newStatus = normalizeStatus(request.status());
+
+        Employee employee = employeeRepository.findById(employeeId)
+                .orElseThrow(() -> new BadRequestException("Employee not found"));
+
+        if (admin.getId().equals(employee.getId())) {
+            throw new BadRequestException("Admin cannot change own status");
+        }
+
+        String oldStatus = employee.getStatus();
+
+        if (newStatus.equalsIgnoreCase(oldStatus)) {
+            return EmployeeResponse.from(employee);
+        }
+
+        employee.setStatus(newStatus);
+
+        if (!"Active".equalsIgnoreCase(newStatus)) {
+            employee.setSignedIn(false);
+        }
+
+        Employee savedEmployee = employeeRepository.save(employee);
+
+        auditService.log(
+                admin.getEmail(),
+                "UPDATE_EMPLOYEE_STATUS",
+                "EMPLOYEE_ID:" + employee.getId(),
+                "Changed employee status from " + oldStatus + " to " + newStatus);
+
+        return EmployeeResponse.from(savedEmployee);
+    }
+
+    private String normalizeStatus(String status) {
+        String trimmed = status.trim();
+
+        for (String validStatus : VALID_STATUSES) {
+            if (validStatus.equalsIgnoreCase(trimmed)) {
+                return validStatus;
+            }
+        }
+
+        throw new BadRequestException("Invalid status. Allowed values: Active, Inactive, Resigned, Terminated");
     }
 }

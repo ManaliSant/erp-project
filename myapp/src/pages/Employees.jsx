@@ -11,7 +11,10 @@ import {
   fetchEmployeesPage,
   createEmployee,
   resetEmployeePassword,
+  updateEmployeeStatus,
 } from "../services/employeeService";
+
+const STATUS_OPTIONS = ["Active", "Inactive", "Resigned", "Terminated"];
 
 export default function Employees() {
   const isAdmin = useSelector(selectIsAdmin);
@@ -30,6 +33,9 @@ export default function Employees() {
   const [loading, setLoading] = useState(false);
   const [creating, setCreating] = useState(false);
   const [resettingId, setResettingId] = useState(null);
+  const [statusUpdatingId, setStatusUpdatingId] = useState(null);
+
+  const [statusDrafts, setStatusDrafts] = useState({});
 
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -59,11 +65,19 @@ export default function Employees() {
         search,
       });
 
-      setEmployees(Array.isArray(response.content) ? response.content : []);
+      const employeeList = Array.isArray(response.content) ? response.content : [];
+
+      setEmployees(employeeList);
       setTotalPages(response.totalPages || 0);
       setTotalElements(response.totalElements || 0);
       setNumberOfElements(response.numberOfElements || 0);
       setPage(response.number || targetPage);
+
+      const drafts = {};
+      employeeList.forEach((employee) => {
+        drafts[employee.id] = employee.status || "Active";
+      });
+      setStatusDrafts(drafts);
     } catch (err) {
       setError("Failed to load employees.");
     } finally {
@@ -182,6 +196,43 @@ export default function Employees() {
     }
   }
 
+  async function handleUpdateStatus(employee) {
+    const selectedStatus = statusDrafts[employee.id] || employee.status;
+
+    if (!selectedStatus) {
+      setError("Select a valid status.");
+      setSuccess("");
+      return;
+    }
+
+    if (selectedStatus === employee.status) {
+      setError("");
+      setSuccess("No status change needed.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Change ${employee.name}'s status from ${employee.status} to ${selectedStatus}?`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setStatusUpdatingId(employee.id);
+      setError("");
+      setSuccess("");
+
+      await updateEmployeeStatus(employee.id, selectedStatus);
+
+      setSuccess(`Status updated for ${employee.name}.`);
+      await loadEmployees(page);
+    } catch (err) {
+      setError("Failed to update employee status.");
+    } finally {
+      setStatusUpdatingId(null);
+    }
+  }
+
   function handleSearchSubmit(e) {
     e.preventDefault();
     setPage(0);
@@ -204,6 +255,17 @@ export default function Employees() {
     if (page < totalPages - 1) {
       loadEmployees(page + 1);
     }
+  }
+
+  function getRowStyle(employee) {
+    if (!employee.status || employee.status === "Active") {
+      return {};
+    }
+
+    return {
+      background: "#f9fafb",
+      color: "#6b7280",
+    };
   }
 
   if (!isAdmin) {
@@ -340,8 +402,11 @@ export default function Employees() {
                 value={form.status}
                 onChange={(e) => updateField("status", e.target.value)}
               >
-                <option value="Active">Active</option>
-                <option value="Inactive">Inactive</option>
+                {STATUS_OPTIONS.map((status) => (
+                  <option key={status} value={status}>
+                    {status}
+                  </option>
+                ))}
               </select>
             </div>
           </div>
@@ -426,14 +491,15 @@ export default function Employees() {
                 <th style={styles.th}>Designation</th>
                 <th style={styles.th}>Manager</th>
                 <th style={styles.th}>Leaves</th>
-                <th style={styles.th}>Status</th>
+                <th style={styles.th}>Current Status</th>
+                <th style={styles.th}>Change Status</th>
                 <th style={styles.th}>Actions</th>
               </tr>
             </thead>
 
             <tbody>
               {employees.map((employee) => (
-                <tr key={employee.id}>
+                <tr key={employee.id} style={getRowStyle(employee)}>
                   <td style={styles.td}>{employee.id}</td>
                   <td style={styles.td}>{employee.employeeCode}</td>
                   <td style={styles.td}>{employee.name}</td>
@@ -443,9 +509,41 @@ export default function Employees() {
                   <td style={styles.td}>{employee.designation}</td>
                   <td style={styles.td}>{employee.manager}</td>
                   <td style={styles.td}>{employee.leavesRemaining}</td>
+
                   <td style={styles.td}>
                     <StatusBadge status={employee.status} />
                   </td>
+
+                  <td style={styles.td}>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                      <select
+                        style={{ ...styles.input, minWidth: 130 }}
+                        value={statusDrafts[employee.id] || employee.status || "Active"}
+                        onChange={(e) =>
+                          setStatusDrafts((prev) => ({
+                            ...prev,
+                            [employee.id]: e.target.value,
+                          }))
+                        }
+                      >
+                        {STATUS_OPTIONS.map((status) => (
+                          <option key={status} value={status}>
+                            {status}
+                          </option>
+                        ))}
+                      </select>
+
+                      <button
+                        type="button"
+                        style={styles.secondaryButton}
+                        disabled={statusUpdatingId === employee.id}
+                        onClick={() => handleUpdateStatus(employee)}
+                      >
+                        {statusUpdatingId === employee.id ? "Updating..." : "Update"}
+                      </button>
+                    </div>
+                  </td>
+
                   <td style={styles.td}>
                     <button
                       type="button"
@@ -463,7 +561,7 @@ export default function Employees() {
 
               {!loading && employees.length === 0 && (
                 <tr>
-                  <td style={styles.td} colSpan={11}>
+                  <td style={styles.td} colSpan={12}>
                     No employees found.
                   </td>
                 </tr>

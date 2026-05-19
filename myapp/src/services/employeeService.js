@@ -29,3 +29,9 @@ export async function resetEmployeePassword(employeeId, payload) {
 export async function changeOwnPassword(payload) {
   return patch("/employees/me/change-password", payload);
 }
+
+export async function updateEmployeeStatus(employeeId, status) {
+  return patch(`/employees/${employeeId}/status`, {
+    status,
+  });
+}

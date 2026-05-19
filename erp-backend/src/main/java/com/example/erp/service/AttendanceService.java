@@ -10,6 +10,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
@@ -33,6 +34,10 @@ public class AttendanceService {
     @Transactional
     public AttendanceRecord signIn(Authentication authentication) {
         Employee employee = getLoggedInEmployee(authentication);
+
+        if (!"Active".equalsIgnoreCase(employee.getStatus())) {
+            throw new BadRequestException("Inactive employees cannot sign in");
+        }
 
         LocalDate today = LocalDate.now();
         LocalTime now = LocalTime.now().withNano(0);
@@ -61,11 +66,15 @@ public class AttendanceService {
                     .attendanceDate(today)
                     .signInTime(now)
                     .signOutTime(null)
+                    .workedMinutes(0L)
+                    .workedHours("0h 0m")
                     .status("SIGNED_IN")
                     .build();
         } else {
             record.setSignInTime(now);
             record.setSignOutTime(null);
+            record.setWorkedMinutes(0L);
+            record.setWorkedHours("0h 0m");
             record.setStatus("SIGNED_IN");
         }
 
@@ -99,7 +108,15 @@ public class AttendanceService {
             throw new BadRequestException("Already signed out");
         }
 
+        long workedMinutes = Duration.between(record.getSignInTime(), now).toMinutes();
+
+        if (workedMinutes < 0) {
+            throw new BadRequestException("Invalid attendance time calculation");
+        }
+
         record.setSignOutTime(now);
+        record.setWorkedMinutes(workedMinutes);
+        record.setWorkedHours(formatWorkedHours(workedMinutes));
         record.setStatus("SIGNED_OUT");
 
         employee.setSignedIn(false);
@@ -112,14 +129,14 @@ public class AttendanceService {
                 employee.getEmail(),
                 "SIGN_OUT",
                 "EMPLOYEE_ID:" + employee.getId(),
-                "Employee signed out");
+                "Employee signed out after " + savedRecord.getWorkedHours());
 
         return savedRecord;
     }
 
     public List<AttendanceRecord> getMyAttendance(Authentication authentication) {
         Employee employee = getLoggedInEmployee(authentication);
-        return attendanceRecordRepository.findByEmployeeId(employee.getId());
+        return attendanceRecordRepository.findByEmployeeIdOrderByAttendanceDateDesc(employee.getId());
     }
 
     public List<AttendanceRecord> getTeamAttendance(Authentication authentication) {
@@ -129,10 +146,29 @@ public class AttendanceService {
             throw new BadRequestException("Only managers can view team attendance");
         }
 
-        return attendanceRecordRepository.findByManager(manager.getName());
+        return attendanceRecordRepository.findByManagerOrderByAttendanceDateDesc(manager.getName());
     }
 
     public List<AttendanceRecord> getAllAttendance() {
         return attendanceRecordRepository.findAll();
+    }
+
+    public List<AttendanceRecord> getAttendanceByDate(LocalDate date) {
+        return attendanceRecordRepository.findByAttendanceDateOrderByEmployeeNameAsc(date);
+    }
+
+    public List<AttendanceRecord> getAttendanceBetweenDates(LocalDate startDate, LocalDate endDate) {
+        if (endDate.isBefore(startDate)) {
+            throw new BadRequestException("End date cannot be before start date");
+        }
+
+        return attendanceRecordRepository.findByAttendanceDateBetweenOrderByAttendanceDateDesc(startDate, endDate);
+    }
+
+    private String formatWorkedHours(long workedMinutes) {
+        long hours = workedMinutes / 60;
+        long minutes = workedMinutes % 60;
+
+        return hours + "h " + minutes + "m";
     }
 }

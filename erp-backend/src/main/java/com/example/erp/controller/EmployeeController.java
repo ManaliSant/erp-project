@@ -4,6 +4,7 @@ import com.example.erp.dto.ChangePasswordRequest;
 import com.example.erp.dto.CreateEmployeeRequest;
 import com.example.erp.dto.EmployeeResponse;
 import com.example.erp.dto.ResetPasswordRequest;
+import com.example.erp.dto.UpdateEmployeeStatusRequest;
 import com.example.erp.service.EmployeeService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -59,9 +60,9 @@ public class EmployeeController {
     @PatchMapping("/{id}/reset-password")
     @PreAuthorize("hasRole('ADMIN')")
     public EmployeeResponse resetPassword(
-            Authentication authentication,
             @PathVariable Long id,
-            @RequestBody ResetPasswordRequest request) {
+            @RequestBody ResetPasswordRequest request,
+            Authentication authentication) {
         return employeeService.adminResetPassword(authentication, id, request);
     }
 
@@ -72,5 +73,14 @@ public class EmployeeController {
             @RequestBody ChangePasswordRequest request) {
         String message = employeeService.changeOwnPassword(authentication, request);
         return Map.of("message", message);
+    }
+
+    @PatchMapping("/{id}/status")
+    @PreAuthorize("hasRole('ADMIN')")
+    public EmployeeResponse updateEmployeeStatus(
+            @PathVariable Long id,
+            @RequestBody UpdateEmployeeStatusRequest request,
+            Authentication authentication) {
+        return employeeService.updateEmployeeStatus(authentication, id, request);
     }
 }

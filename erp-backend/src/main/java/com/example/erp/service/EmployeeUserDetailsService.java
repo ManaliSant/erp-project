@@ -3,6 +3,7 @@ package com.example.erp.service;
 import com.example.erp.entity.Employee;
 import com.example.erp.repository.EmployeeRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.*;
 import org.springframework.stereotype.Service;
@@ -17,8 +18,12 @@ public class EmployeeUserDetailsService implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
-        Employee employee = employeeRepository.findByEmail(email)
+        Employee employee = employeeRepository.findByEmail(email.toLowerCase())
                 .orElseThrow(() -> new UsernameNotFoundException("Employee not found"));
+
+        if (!"Active".equalsIgnoreCase(employee.getStatus())) {
+            throw new DisabledException("Employee account is not active");
+        }
 
         return new User(
                 employee.getEmail(),

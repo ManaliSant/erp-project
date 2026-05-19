@@ -3,10 +3,12 @@ package com.example.erp.controller;
 import com.example.erp.entity.AttendanceRecord;
 import com.example.erp.service.AttendanceService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -45,5 +47,21 @@ public class AttendanceController {
     @PreAuthorize("hasRole('ADMIN')")
     public List<AttendanceRecord> allAttendance() {
         return attendanceService.getAllAttendance();
+    }
+
+    @GetMapping("/date")
+    @PreAuthorize("hasRole('ADMIN')")
+    public List<AttendanceRecord> attendanceByDate(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        return attendanceService.getAttendanceByDate(date);
+    }
+
+    @GetMapping("/range")
+    @PreAuthorize("hasRole('ADMIN')")
+    public List<AttendanceRecord> attendanceByDateRange(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+        return attendanceService.getAttendanceBetweenDates(startDate, endDate);
     }
 }
