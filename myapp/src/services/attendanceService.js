@@ -19,3 +19,11 @@ export async function fetchTeamAttendance() {
 export async function fetchAllAttendance() {
   return get("/attendance/all");
 }
+
+export async function fetchAttendanceByDate(date) {
+  return get(`/attendance/date?date=${date}`);
+}
+
+export async function fetchAttendanceByRange(startDate, endDate) {
+  return get(`/attendance/range?startDate=${startDate}&endDate=${endDate}`);
+}
