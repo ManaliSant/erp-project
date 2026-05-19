@@ -41,6 +41,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/attendance/**").authenticated()
                         .requestMatchers("/api/audit/**").authenticated()
                         .requestMatchers("/api/documents/**").authenticated()
+                        .requestMatchers("/api/dashboard/**").authenticated()
 
                         .anyRequest().authenticated())
 

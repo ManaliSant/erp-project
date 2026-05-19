@@ -1,58 +1,192 @@
-import React from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useSelector } from "react-redux";
-import { styles } from "../utils/styles";
-import { getDaysWithCompany } from "../utils/helpers";
+
 import Card from "../components/common/Card";
 import StatusBadge from "../components/common/StatusBadge";
 import StatBox from "../components/common/StatBox";
-import { selectCurrentUser, selectIsAdmin } from "../features/auth/selectors";
+
+import { getDaysWithCompany } from "../utils/helpers";
+import { styles } from "../utils/styles";
+import { fetchDashboardStats } from "../services/dashboardService";
+
+import {
+  selectCurrentUser,
+  selectIsAdmin,
+  selectIsManager,
+} from "../features/auth/selectors";
 
 export default function Dashboard() {
   const employees = useSelector((state) => state.employees.list);
   const applications = useSelector((state) => state.applications.list);
+
   const currentUser = useSelector(selectCurrentUser);
   const isAdmin = useSelector(selectIsAdmin);
+  const isManager = useSelector(selectIsManager);
 
-  const myApplications = isAdmin
-    ? applications
-    : applications.filter((a) => a.employeeId === currentUser.id);
+  const [stats, setStats] = useState(null);
+  const [loadingStats, setLoadingStats] = useState(false);
+  const [statsError, setStatsError] = useState("");
 
-  const pendingCount = applications.filter((a) => a.status === "Pending").length;
-  const approvedCount = applications.filter((a) => a.status === "Approved").length;
-  const signedInCount = employees.filter((e) => e.signedIn).length;
+  useEffect(() => {
+    async function loadDashboardStats() {
+      try {
+        setLoadingStats(true);
+        setStatsError("");
+
+        const data = await fetchDashboardStats();
+        setStats(data);
+      } catch (error) {
+        setStatsError("Failed to load dashboard stats.");
+      } finally {
+        setLoadingStats(false);
+      }
+    }
+
+    loadDashboardStats();
+  }, []);
+
+  const visibleApplications = useMemo(() => {
+    if (isAdmin) {
+      return applications;
+    }
+
+    if (isManager) {
+      return applications;
+    }
+
+    return applications.filter((app) => app.employeeId === currentUser?.id);
+  }, [applications, currentUser, isAdmin, isManager]);
+
+  const myApplications = useMemo(() => {
+    return applications.filter((app) => app.employeeId === currentUser?.id);
+  }, [applications, currentUser]);
+
+  const signedInCountFromRedux = employees.filter((e) => e.signedIn).length;
+  const pendingCountFromRedux = applications.filter((a) => a.status === "Pending").length;
+  const approvedCountFromRedux = applications.filter((a) => a.status === "Approved").length;
+  const rejectedCountFromRedux = applications.filter((a) => a.status === "Rejected").length;
+
+  const totalEmployees = stats?.totalEmployees ?? employees.length;
+  const signedInEmployees = stats?.signedInEmployees ?? signedInCountFromRedux;
+  const pendingApplications = stats?.pendingApplications ?? pendingCountFromRedux;
+  const approvedApplications = stats?.approvedApplications ?? approvedCountFromRedux;
+  const rejectedApplications = stats?.rejectedApplications ?? rejectedCountFromRedux;
+  const generatedPdfs = stats?.generatedPdfs ?? 0;
+  const totalAuditLogs = stats?.totalAuditLogs ?? 0;
 
   return (
     <div>
+      {loadingStats && (
+        <p style={{ marginBottom: 12, color: "#555", fontSize: 13 }}>
+          Loading dashboard analytics...
+        </p>
+      )}
+
+      {statsError && (
+        <p style={{ marginBottom: 12, color: "red", fontSize: 13 }}>
+          {statsError}
+        </p>
+      )}
+
       <div style={styles.statsGrid}>
         {isAdmin ? (
           <>
-            <StatBox label="Total Employees" value={employees.length} />
-            <StatBox label="Pending Requests" value={pendingCount} />
-            <StatBox label="Approved Requests" value={approvedCount} />
-            <StatBox label="Signed In" value={signedInCount} />
+            <StatBox label="Total Employees" value={totalEmployees} />
+            <StatBox label="Admins" value={stats?.totalAdmins ?? "-"} />
+            <StatBox label="Managers" value={stats?.totalManagers ?? "-"} />
+            <StatBox label="Employees" value={stats?.totalRegularEmployees ?? "-"} />
+            <StatBox label="Signed In Now" value={signedInEmployees} />
+            <StatBox label="Pending Requests" value={pendingApplications} />
+            <StatBox label="Approved Requests" value={approvedApplications} />
+            <StatBox label="Rejected Requests" value={rejectedApplications} />
+            <StatBox label="Generated PDFs" value={generatedPdfs} />
+            <StatBox label="Audit Logs" value={totalAuditLogs} />
           </>
         ) : (
           <>
-            <StatBox label="Days with Company" value={getDaysWithCompany(currentUser.joinDate)} />
-            <StatBox label="Leaves Remaining" value={currentUser.leavesRemaining} />
+            <StatBox
+              label="Days with Company"
+              value={getDaysWithCompany(currentUser?.joinDate)}
+            />
+            <StatBox
+              label="Leaves Remaining"
+              value={currentUser?.leavesRemaining ?? "-"}
+            />
             <StatBox label="My Requests" value={myApplications.length} />
-            <StatBox label="Sign Status" value={currentUser.signedIn ? "Signed In" : "Signed Out"} />
+            <StatBox
+              label="Sign Status"
+              value={currentUser?.signedIn ? "Signed In" : "Signed Out"}
+            />
+            {isManager && (
+              <>
+                <StatBox label="Team Requests" value={visibleApplications.length} />
+                <StatBox label="Pending Requests" value={pendingApplications} />
+              </>
+            )}
           </>
         )}
       </div>
 
-      <Card title={isAdmin ? "Recent Applications" : "My Applications"}>
-        {myApplications.length === 0 ? (
+      {isAdmin && (
+        <Card title="System Overview">
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+              gap: 12,
+            }}
+          >
+            <div style={styles.listItem}>
+              <div>
+                <div style={{ fontWeight: "bold" }}>PDF Documents</div>
+                <div style={{ fontSize: 13, color: "#555" }}>
+                  Generated approval/reference documents
+                </div>
+              </div>
+              <strong>{generatedPdfs}</strong>
+            </div>
+
+            <div style={styles.listItem}>
+              <div>
+                <div style={{ fontWeight: "bold" }}>Audit Events</div>
+                <div style={{ fontSize: 13, color: "#555" }}>
+                  Logged system actions
+                </div>
+              </div>
+              <strong>{totalAuditLogs}</strong>
+            </div>
+
+            <div style={styles.listItem}>
+              <div>
+                <div style={{ fontWeight: "bold" }}>Currently Signed In</div>
+                <div style={{ fontSize: 13, color: "#555" }}>
+                  Employees signed in through attendance
+                </div>
+              </div>
+              <strong>{signedInEmployees}</strong>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      <Card title={isAdmin ? "Recent Applications" : isManager ? "Team Applications" : "My Applications"}>
+        {visibleApplications.length === 0 ? (
           <p>No applications found.</p>
         ) : (
-          myApplications.slice(0, 5).map((app) => (
+          visibleApplications.slice(0, 5).map((app) => (
             <div key={app.id} style={styles.listItem}>
               <div>
                 <div style={{ fontWeight: "bold" }}>{app.title}</div>
                 <div style={{ fontSize: 13, color: "#555" }}>
                   {app.employeeName} | {app.type} | {app.createdAt}
                 </div>
+                {app.pdfGenerated && (
+                  <div style={{ fontSize: 12, color: "#047857", marginTop: 4 }}>
+                    PDF generated
+                  </div>
+                )}
               </div>
+
               <StatusBadge status={app.status} />
             </div>
           ))

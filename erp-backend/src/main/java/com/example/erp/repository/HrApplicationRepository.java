@@ -8,4 +8,8 @@ import java.util.List;
 public interface HrApplicationRepository extends JpaRepository<HrApplication, String> {
 
     List<HrApplication> findByEmployeeId(Long employeeId);
+
+    long countByStatusIgnoreCase(String status);
+
+    long countByPdfGeneratedTrue();
 }

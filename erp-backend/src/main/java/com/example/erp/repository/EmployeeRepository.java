@@ -14,6 +14,10 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
 
     List<Employee> findByManager(String manager);
 
+    long countByRoleIgnoreCase(String role);
+
+    long countBySignedInTrue();
+
     Page<Employee> findByNameContainingIgnoreCaseOrEmailContainingIgnoreCaseOrDepartmentContainingIgnoreCase(
             String name,
             String email,

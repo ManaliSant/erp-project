@@ -53,6 +53,7 @@ export default function Applications() {
     days: "",
   });
 
+  const [referenceTextMap, setReferenceTextMap] = useState({});
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [pageLoading, setPageLoading] = useState(false);
@@ -140,6 +141,7 @@ export default function Applications() {
       await managerApproveApplicationRequest(app.id, {
         reviewedBy: currentUser.name,
         reviewComment: "Approved by manager.",
+        referenceText: "",
       });
 
       await reloadApplications();
@@ -155,9 +157,18 @@ export default function Applications() {
       setActionLoadingId(app.id);
       setApiError("");
 
+      const referenceText = referenceTextMap[app.id] || "";
+
+      if (app.type === "Reference Letter" && !referenceText.trim()) {
+        setApiError("Reference letter content is required before final approval.");
+        setActionLoadingId(null);
+        return;
+      }
+
       await adminApproveApplicationRequest(app.id, {
         reviewedBy: currentUser.name,
         reviewComment: "Final approval by admin.",
+        referenceText: app.type === "Reference Letter" ? referenceText : "",
       });
 
       await reloadApplications();
@@ -176,6 +187,7 @@ export default function Applications() {
       await rejectApplicationRequest(app.id, {
         reviewedBy: currentUser.name,
         reviewComment: "Rejected.",
+        referenceText: "",
       });
 
       dispatch(rejectApplicationLocal({ appId: app.id, reviewer: currentUser.name }));
@@ -439,24 +451,45 @@ export default function Applications() {
                     {isAdmin &&
                       app.managerStatus === "Approved" &&
                       app.adminStatus === "Pending" && (
-                        <div style={{ display: "flex", gap: 8 }}>
-                          <button
-                            onClick={() => handleAdminApprove(app)}
-                            style={styles.successButton}
-                            disabled={actionLoadingId === app.id}
-                          >
-                            {actionLoadingId === app.id
-                              ? "Processing..."
-                              : "Final Approve"}
-                          </button>
+                        <div style={{ display: "flex", gap: 8, flexDirection: "column" }}>
+                          {app.type === "Reference Letter" && (
+                            <textarea
+                              style={{
+                                ...styles.textarea,
+                                minWidth: 280,
+                                marginBottom: 8,
+                              }}
+                              rows={4}
+                              placeholder="Write official reference letter content here..."
+                              value={referenceTextMap[app.id] || ""}
+                              onChange={(e) =>
+                                setReferenceTextMap((prev) => ({
+                                  ...prev,
+                                  [app.id]: e.target.value,
+                                }))
+                              }
+                            />
+                          )}
 
-                          <button
-                            onClick={() => handleReject(app)}
-                            style={styles.dangerButton}
-                            disabled={actionLoadingId === app.id}
-                          >
-                            Reject
-                          </button>
+                          <div style={{ display: "flex", gap: 8 }}>
+                            <button
+                              onClick={() => handleAdminApprove(app)}
+                              style={styles.successButton}
+                              disabled={actionLoadingId === app.id}
+                            >
+                              {actionLoadingId === app.id
+                                ? "Processing..."
+                                : "Final Approve"}
+                            </button>
+
+                            <button
+                              onClick={() => handleReject(app)}
+                              style={styles.dangerButton}
+                              disabled={actionLoadingId === app.id}
+                            >
+                              Reject
+                            </button>
+                          </div>
                         </div>
                       )}
 
