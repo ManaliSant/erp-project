@@ -59,6 +59,7 @@ export default function ForgotPassword() {
           <div style={{ marginBottom: 12 }}>
             <label style={styles.label}>Email</label>
             <input
+              type="email"
               style={styles.input}
               value={email}
               placeholder="employee@company.com"

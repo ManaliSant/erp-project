@@ -46,6 +46,7 @@ public class Employee {
     private String status;
 
     @JsonIgnore
+    @Column(unique = true)
     private String resetPasswordToken;
 
     @JsonIgnore

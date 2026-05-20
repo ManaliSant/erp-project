@@ -62,6 +62,7 @@ export default function Login() {
           <div style={{ marginBottom: 12 }}>
             <label style={styles.label}>Email</label>
             <input
+              type="email"
               style={styles.input}
               value={form.email}
               onChange={(e) => setForm({ ...form, email: e.target.value })}

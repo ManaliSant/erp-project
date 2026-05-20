@@ -10,6 +10,8 @@ import com.example.erp.exception.BadRequestException;
 import com.example.erp.repository.EmployeeRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -32,63 +34,84 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
 
     public LoginResponse login(LoginRequest request) {
-        Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.email(), request.password()));
-
-        if (!authentication.isAuthenticated()) {
-            throw new BadRequestException("Invalid email or password");
-        }
-
-        Employee employee = employeeRepository.findByEmail(request.email().toLowerCase())
-                .orElseThrow(() -> new BadRequestException("Employee not found"));
-
-        UserDetails userDetails = employeeUserDetailsService.loadUserByUsername(request.email());
-        String jwt = jwtService.generateToken(userDetails);
-
-        auditService.log(
-                employee.getEmail(),
-                "LOGIN",
-                "EMPLOYEE_ID:" + employee.getId(),
-                "User logged in");
-
-        return new LoginResponse(jwt, EmployeeResponse.from(employee));
-    }
-
-    @Transactional
-    public String forgotPassword(ForgotPasswordRequest request) {
         if (request.email() == null || request.email().isBlank()) {
             throw new BadRequestException("Email is required");
         }
 
-        Employee employee = employeeRepository.findByEmail(request.email().toLowerCase())
-                .orElseThrow(() -> new BadRequestException("If the email exists, a reset link will be generated"));
-
-        if (!"Active".equalsIgnoreCase(employee.getStatus())) {
-            throw new BadRequestException("Password reset is available only for active accounts");
+        if (request.password() == null || request.password().isBlank()) {
+            throw new BadRequestException("Password is required");
         }
 
-        String token = UUID.randomUUID().toString();
-        LocalDateTime expiry = LocalDateTime.now().plusMinutes(15);
+        String email = request.email().trim().toLowerCase();
 
-        employee.setResetPasswordToken(token);
-        employee.setResetPasswordTokenExpiry(expiry);
-        employeeRepository.save(employee);
+        try {
+            Authentication authentication = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(email, request.password()));
 
-        String resetLink = "http://localhost:5173/reset-password?token=" + token;
+            if (!authentication.isAuthenticated()) {
+                throw new BadRequestException("Invalid email or password");
+            }
 
-        System.out.println("=================================================");
-        System.out.println("PASSWORD RESET LINK FOR " + employee.getEmail());
-        System.out.println(resetLink);
-        System.out.println("Expires at: " + expiry);
-        System.out.println("=================================================");
+            Employee employee = employeeRepository.findByEmail(email)
+                    .orElseThrow(() -> new BadRequestException("Invalid email or password"));
 
-        auditService.log(
-                employee.getEmail(),
-                "REQUEST_PASSWORD_RESET",
-                "EMPLOYEE_ID:" + employee.getId(),
-                "Password reset token generated");
+            UserDetails userDetails = employeeUserDetailsService.loadUserByUsername(email);
+            String jwt = jwtService.generateToken(userDetails);
 
-        return "If the email exists, a password reset link has been generated.";
+            auditService.log(
+                    employee.getEmail(),
+                    "LOGIN",
+                    "EMPLOYEE_ID:" + employee.getId(),
+                    "User logged in");
+
+            return new LoginResponse(jwt, EmployeeResponse.from(employee));
+
+        } catch (BadCredentialsException ex) {
+            throw new BadRequestException("Invalid email or password");
+        } catch (DisabledException ex) {
+            throw new BadRequestException("Account is not active. Please contact admin.");
+        }
+    }
+
+    @Transactional
+    public String forgotPassword(ForgotPasswordRequest request) {
+        String genericMessage = "If the email exists, a password reset link has been generated.";
+
+        if (request.email() == null || request.email().isBlank()) {
+            return genericMessage;
+        }
+
+        String email = request.email().trim().toLowerCase();
+
+        employeeRepository.findByEmail(email)
+                .ifPresent(employee -> {
+                    if (!"Active".equalsIgnoreCase(employee.getStatus())) {
+                        return;
+                    }
+
+                    String token = UUID.randomUUID().toString();
+                    LocalDateTime expiry = LocalDateTime.now().plusMinutes(15);
+
+                    employee.setResetPasswordToken(token);
+                    employee.setResetPasswordTokenExpiry(expiry);
+                    employeeRepository.save(employee);
+
+                    String resetLink = "http://localhost:5173/reset-password?token=" + token;
+
+                    System.out.println("=================================================");
+                    System.out.println("PASSWORD RESET LINK FOR " + employee.getEmail());
+                    System.out.println(resetLink);
+                    System.out.println("Expires at: " + expiry);
+                    System.out.println("=================================================");
+
+                    auditService.log(
+                            employee.getEmail(),
+                            "REQUEST_PASSWORD_RESET",
+                            "EMPLOYEE_ID:" + employee.getId(),
+                            "Password reset token generated");
+                });
+
+        return genericMessage;
     }
 
     @Transactional
@@ -105,14 +128,16 @@ public class AuthService {
             throw new BadRequestException("Password must be at least 6 characters");
         }
 
-        Employee employee = employeeRepository.findAll()
-                .stream()
-                .filter(emp -> request.token().equals(emp.getResetPasswordToken()))
-                .findFirst()
+        Employee employee = employeeRepository.findByResetPasswordToken(request.token().trim())
                 .orElseThrow(() -> new BadRequestException("Invalid reset token"));
 
         if (employee.getResetPasswordTokenExpiry() == null ||
                 employee.getResetPasswordTokenExpiry().isBefore(LocalDateTime.now())) {
+
+            employee.setResetPasswordToken(null);
+            employee.setResetPasswordTokenExpiry(null);
+            employeeRepository.save(employee);
+
             throw new BadRequestException("Reset token has expired");
         }
 

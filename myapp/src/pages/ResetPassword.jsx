@@ -91,9 +91,13 @@ export default function ResetPassword() {
           <div style={{ marginBottom: 12 }}>
             <label style={styles.label}>Reset Token</label>
             <input
-              style={styles.input}
-              value={form.token}
-              onChange={(e) => setForm({ ...form, token: e.target.value })}
+                style={{
+                ...styles.input,
+                background: tokenFromUrl ? "#f3f4f6" : "#ffffff",
+                    }}
+                value={form.token}
+                 readOnly={Boolean(tokenFromUrl)}
+                 onChange={(e) => setForm({ ...form, token: e.target.value })}
             />
           </div>
 
