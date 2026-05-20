@@ -4,6 +4,8 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Table(name = "employees")
 @Getter
@@ -31,7 +33,7 @@ public class Employee {
     private String password;
 
     @Column(nullable = false)
-    private String role; // ADMIN, MANAGER, EMPLOYEE
+    private String role;
 
     private String department;
     private String designation;
@@ -42,4 +44,10 @@ public class Employee {
     private String lastSignIn;
     private String lastSignOut;
     private String status;
+
+    @JsonIgnore
+    private String resetPasswordToken;
+
+    @JsonIgnore
+    private LocalDateTime resetPasswordTokenExpiry;
 }

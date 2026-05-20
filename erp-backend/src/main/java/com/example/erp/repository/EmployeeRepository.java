@@ -18,9 +18,20 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
 
     long countBySignedInTrue();
 
+    Page<Employee> findByStatusIgnoreCase(String status, Pageable pageable);
+
     Page<Employee> findByNameContainingIgnoreCaseOrEmailContainingIgnoreCaseOrDepartmentContainingIgnoreCase(
             String name,
             String email,
+            String department,
+            Pageable pageable);
+
+    Page<Employee> findByStatusIgnoreCaseAndNameContainingIgnoreCaseOrStatusIgnoreCaseAndEmailContainingIgnoreCaseOrStatusIgnoreCaseAndDepartmentContainingIgnoreCase(
+            String status1,
+            String name,
+            String status2,
+            String email,
+            String status3,
             String department,
             Pageable pageable);
 }

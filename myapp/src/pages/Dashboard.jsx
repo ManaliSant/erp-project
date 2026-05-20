@@ -8,6 +8,7 @@ import StatBox from "../components/common/StatBox";
 import { getDaysWithCompany } from "../utils/helpers";
 import { styles } from "../utils/styles";
 import { fetchDashboardStats } from "../services/dashboardService";
+import { fetchAnnouncements, markAnnouncementRead } from "../services/announcementService";
 
 import {
   selectCurrentUser,
@@ -27,6 +28,8 @@ export default function Dashboard() {
   const [loadingStats, setLoadingStats] = useState(false);
   const [statsError, setStatsError] = useState("");
 
+  const [announcements, setAnnouncements] = useState([]);
+
   useEffect(() => {
     async function loadDashboardStats() {
       try {
@@ -43,6 +46,12 @@ export default function Dashboard() {
     }
 
     loadDashboardStats();
+  }, []);
+
+  useEffect(() => {
+    fetchAnnouncements()
+      .then((data) => setAnnouncements(data.slice(0, 3)))
+      .catch(() => {});
   }, []);
 
   const visibleApplications = useMemo(() => {
@@ -198,6 +207,58 @@ export default function Dashboard() {
               </div>
 
               <StatusBadge status={app.status} />
+            </div>
+          ))
+        )}
+      </Card>
+
+      <Card title="Latest Announcements">
+        {announcements.length === 0 ? (
+          <p style={{ color: "#555", fontSize: 13 }}>No announcements yet.</p>
+        ) : (
+          announcements.map((a) => (
+            <div
+              key={a.id}
+              style={{
+                ...styles.listItem,
+                borderLeft: a.read ? "3px solid #e5e7eb" : "3px solid #111827",
+                cursor: "pointer",
+              }}
+              onClick={async () => {
+                if (!a.read) {
+                  try {
+                    await markAnnouncementRead(a.id);
+                    setAnnouncements((prev) =>
+                      prev.map((x) => (x.id === a.id ? { ...x, read: true } : x))
+                    );
+                  } catch {
+                    // best effort
+                  }
+                }
+              }}
+            >
+              <div>
+                <div style={{ fontWeight: a.read ? "normal" : "bold", fontSize: 14 }}>
+                  {a.title}
+                  {!a.read && (
+                    <span
+                      style={{
+                        marginLeft: 8,
+                        background: "#111827",
+                        color: "#fff",
+                        borderRadius: 10,
+                        padding: "1px 7px",
+                        fontSize: 11,
+                      }}
+                    >
+                      New
+                    </span>
+                  )}
+                </div>
+                <div style={{ fontSize: 12, color: "#6b7280" }}>
+                  {a.createdByName} &middot; {a.createdAt}
+                </div>
+              </div>
             </div>
           ))
         )}

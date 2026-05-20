@@ -34,14 +34,15 @@ public class SecurityConfig {
 
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers("/api/auth/login").permitAll()
-
+                        .requestMatchers("/api/auth/login", "/api/auth/forgot-password", "/api/auth/reset-password")
+                        .permitAll()
                         .requestMatchers("/api/employees/**").authenticated()
                         .requestMatchers("/api/applications/**").authenticated()
                         .requestMatchers("/api/attendance/**").authenticated()
                         .requestMatchers("/api/audit/**").authenticated()
                         .requestMatchers("/api/documents/**").authenticated()
                         .requestMatchers("/api/dashboard/**").authenticated()
+                        .requestMatchers("/api/announcements/**").authenticated()
 
                         .anyRequest().authenticated())
 

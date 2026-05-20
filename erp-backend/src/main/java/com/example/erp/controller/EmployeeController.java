@@ -34,9 +34,10 @@ public class EmployeeController {
     @PreAuthorize("hasRole('ADMIN')")
     public Page<EmployeeResponse> getEmployeesPage(
             @RequestParam(defaultValue = "") String search,
+            @RequestParam(defaultValue = "All") String status,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        return employeeService.getEmployeesPage(search, PageRequest.of(page, size));
+        return employeeService.getEmployeesPage(search, status, PageRequest.of(page, size));
     }
 
     @GetMapping("/me")

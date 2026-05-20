@@ -47,16 +47,31 @@ public class EmployeeService {
                 .toList();
     }
 
-    public Page<EmployeeResponse> getEmployeesPage(String search, Pageable pageable) {
+    public Page<EmployeeResponse> getEmployeesPage(String search, String status, Pageable pageable) {
         Page<Employee> employees;
 
-        if (search == null || search.isBlank()) {
+        boolean hasSearch = search != null && !search.isBlank();
+        boolean hasStatus = status != null && !status.isBlank() && !"All".equalsIgnoreCase(status);
+
+        if (!hasSearch && !hasStatus) {
             employees = employeeRepository.findAll(pageable);
-        } else {
+        } else if (!hasSearch) {
+            employees = employeeRepository.findByStatusIgnoreCase(status, pageable);
+        } else if (!hasStatus) {
             employees = employeeRepository
                     .findByNameContainingIgnoreCaseOrEmailContainingIgnoreCaseOrDepartmentContainingIgnoreCase(
                             search,
                             search,
+                            search,
+                            pageable);
+        } else {
+            employees = employeeRepository
+                    .findByStatusIgnoreCaseAndNameContainingIgnoreCaseOrStatusIgnoreCaseAndEmailContainingIgnoreCaseOrStatusIgnoreCaseAndDepartmentContainingIgnoreCase(
+                            status,
+                            search,
+                            status,
+                            search,
+                            status,
                             search,
                             pageable);
         }

@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
 import { styles } from "../../utils/styles";
+import { fetchAnnouncements } from "../../services/announcementService";
 
 function linkStyle(isActive) {
   return {
@@ -22,6 +23,16 @@ function linkStyle(isActive) {
 export default function Sidebar({ currentUser }) {
   const role = currentUser?.role?.toUpperCase() || "EMPLOYEE";
   const isAdmin = role === "ADMIN";
+
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    if (!currentUser) return;
+
+    fetchAnnouncements()
+      .then((list) => setUnreadCount(list.filter((a) => !a.read).length))
+      .catch(() => {});
+  }, [currentUser]);
 
   return (
     <div style={styles.sidebar}>
@@ -49,6 +60,29 @@ export default function Sidebar({ currentUser }) {
 
       <NavLink to="/attendance" style={({ isActive }) => linkStyle(isActive)}>
         Attendance
+      </NavLink>
+
+      <NavLink
+        to="/announcements"
+        style={({ isActive }) => linkStyle(isActive)}
+      >
+        <span style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          Announcements
+          {unreadCount > 0 && (
+            <span
+              style={{
+                background: "#dc3545",
+                color: "#fff",
+                borderRadius: 10,
+                padding: "1px 7px",
+                fontSize: 11,
+                fontWeight: "bold",
+              }}
+            >
+              {unreadCount}
+            </span>
+          )}
+        </span>
       </NavLink>
 
       {isAdmin && (

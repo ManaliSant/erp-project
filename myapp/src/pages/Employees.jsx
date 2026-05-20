@@ -25,6 +25,7 @@ export default function Employees() {
   const [size, setSize] = useState(20);
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("All");
 
   const [totalPages, setTotalPages] = useState(0);
   const [totalElements, setTotalElements] = useState(0);
@@ -63,9 +64,12 @@ export default function Employees() {
         page: targetPage,
         size,
         search,
+        status: statusFilter,
       });
 
-      const employeeList = Array.isArray(response.content) ? response.content : [];
+      const employeeList = Array.isArray(response.content)
+        ? response.content
+        : [];
 
       setEmployees(employeeList);
       setTotalPages(response.totalPages || 0);
@@ -89,7 +93,7 @@ export default function Employees() {
     if (isAdmin) {
       loadEmployees(0);
     }
-  }, [isAdmin, size, search]);
+  }, [isAdmin, size, search, statusFilter]);
 
   function updateField(field, value) {
     setForm((prev) => ({
@@ -242,6 +246,7 @@ export default function Employees() {
   function handleClearSearch() {
     setSearchInput("");
     setSearch("");
+    setStatusFilter("All");
     setPage(0);
   }
 
@@ -463,6 +468,22 @@ export default function Employees() {
             <option value={20}>20 rows</option>
             <option value={50}>50 rows</option>
           </select>
+
+          <select
+            style={{ ...styles.input, maxWidth: 160 }}
+            value={statusFilter}
+            onChange={(e) => {
+              setPage(0);
+              setStatusFilter(e.target.value);
+            }}
+          >
+            <option value="All">All Statuses</option>
+            {STATUS_OPTIONS.map((status) => (
+              <option key={status} value={status}>
+                {status}
+              </option>
+            ))}
+          </select>
         </form>
 
         <div style={{ marginBottom: 12, fontSize: 13, color: "#555" }}>
@@ -472,6 +493,12 @@ export default function Employees() {
             <>
               {" "}
               · Search: <strong>{search}</strong>
+            </>
+          )}
+          {statusFilter !== "All" && (
+            <>
+              {" "}
+              · Status: <strong>{statusFilter}</strong>
             </>
           )}
         </div>

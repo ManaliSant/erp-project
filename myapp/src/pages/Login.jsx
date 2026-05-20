@@ -1,6 +1,7 @@
 import React, { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
-import { useNavigate } from "react-router-dom";
+
 import { loginSuccess } from "../features/auth/authSlice";
 import { loginUser } from "../services/authService";
 import { styles } from "../utils/styles";
@@ -29,11 +30,15 @@ export default function Login() {
       setLoading(true);
       setError("");
 
-      const data = await loginUser(form);
+      const data = await loginUser({
+        email: form.email.trim().toLowerCase(),
+        password: form.password,
+      });
+
       dispatch(loginSuccess(data));
       navigate("/dashboard");
     } catch (err) {
-      setError("Login failed. Check credentials or backend.");
+      setError("Login failed. Check credentials or account status.");
     } finally {
       setLoading(false);
     }
@@ -78,6 +83,10 @@ export default function Login() {
           <button type="submit" style={styles.primaryButton} disabled={loading}>
             {loading ? "Signing in..." : "Login"}
           </button>
+
+          <div style={{ marginTop: 12, fontSize: 13 }}>
+            <Link to="/forgot-password">Forgot password?</Link>
+          </div>
         </form>
       </div>
     </div>

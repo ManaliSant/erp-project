@@ -9,7 +9,10 @@ import Applications from "../pages/Applications";
 import Attendance from "../pages/Attendance";
 import Employees from "../pages/Employees";
 import AuditLogs from "../pages/AuditLogs";
+import Announcements from "../pages/Announcements";
 import Login from "../pages/Login";
+import ForgotPassword from "../pages/ForgotPassword";
+import ResetPassword from "../pages/ResetPassword";
 
 import ProtectedRoute from "./ProtectedRoute";
 
@@ -113,6 +116,8 @@ function AppShell() {
 
         <Route path="/attendance" element={<Attendance />} />
 
+        <Route path="/announcements" element={<Announcements />} />
+
         <Route
           path="/employees"
           element={
@@ -147,6 +152,28 @@ export default function AppRouter() {
           path="/login"
           element={
             isAuthenticated ? <Navigate to="/dashboard" replace /> : <Login />
+          }
+        />
+
+        <Route
+          path="/forgot-password"
+          element={
+            isAuthenticated ? (
+              <Navigate to="/dashboard" replace />
+            ) : (
+              <ForgotPassword />
+            )
+          }
+        />
+
+        <Route
+          path="/reset-password"
+          element={
+            isAuthenticated ? (
+              <Navigate to="/dashboard" replace />
+            ) : (
+              <ResetPassword />
+            )
           }
         />
 

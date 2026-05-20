@@ -4,11 +4,17 @@ export async function fetchEmployees() {
   return get("/employees");
 }
 
-export async function fetchEmployeesPage({ page = 0, size = 20, search = "" }) {
+export async function fetchEmployeesPage({
+  page = 0,
+  size = 20,
+  search = "",
+  status = "All",
+}) {
   const query = new URLSearchParams({
     page: String(page),
     size: String(size),
     search,
+    status,
   });
 
   return get(`/employees/page?${query.toString()}`);
