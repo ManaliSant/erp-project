@@ -4,12 +4,14 @@ import { useSelector } from "react-redux";
 import Card from "../components/common/Card";
 import StatusBadge from "../components/common/StatusBadge";
 import { styles } from "../utils/styles";
+import { useToast } from "../components/toast/ToastContext";
 
 import { selectCurrentUser } from "../features/auth/selectors";
 import { changeOwnPassword } from "../services/employeeService";
 
 export default function EmployeeProfile() {
   const currentUser = useSelector(selectCurrentUser);
+  const { showToast } = useToast();
 
   const [passwordForm, setPasswordForm] = useState({
     oldPassword: "",
@@ -18,8 +20,6 @@ export default function EmployeeProfile() {
   });
 
   const [changingPassword, setChangingPassword] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
 
   function updatePasswordField(field, value) {
     setPasswordForm((prev) => ({
@@ -31,26 +31,23 @@ export default function EmployeeProfile() {
   async function handleChangePassword(e) {
     e.preventDefault();
 
-    setError("");
-    setSuccess("");
-
     if (!passwordForm.oldPassword.trim()) {
-      setError("Old password is required.");
+      showToast("Old password is required.", "warning");
       return;
     }
 
     if (!passwordForm.newPassword.trim()) {
-      setError("New password is required.");
+      showToast("New password is required.", "warning");
       return;
     }
 
     if (passwordForm.newPassword.length < 6) {
-      setError("New password must be at least 6 characters.");
+      showToast("New password must be at least 6 characters.", "warning");
       return;
     }
 
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      setError("New password and confirm password do not match.");
+      showToast("New password and confirm password do not match.", "warning");
       return;
     }
 
@@ -68,9 +65,9 @@ export default function EmployeeProfile() {
         confirmPassword: "",
       });
 
-      setSuccess("Password changed successfully.");
+      showToast("Password changed successfully.", "success");
     } catch (err) {
-      setError("Failed to change password. Check your old password.");
+      showToast("Failed to change password. Check your old password.", "error");
     } finally {
       setChangingPassword(false);
     }
@@ -86,18 +83,6 @@ export default function EmployeeProfile() {
 
   return (
     <div>
-      {error && (
-        <p style={{ marginBottom: 12, color: "red", fontSize: 13 }}>
-          {error}
-        </p>
-      )}
-
-      {success && (
-        <p style={{ marginBottom: 12, color: "green", fontSize: 13 }}>
-          {success}
-        </p>
-      )}
-
       <Card title="Employee Profile">
         <div style={styles.formGrid}>
           <div>

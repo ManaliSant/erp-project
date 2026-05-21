@@ -4,6 +4,7 @@ import { useDispatch, useSelector } from "react-redux";
 import Card from "../components/common/Card";
 import StatusBadge from "../components/common/StatusBadge";
 import { styles } from "../utils/styles";
+import { useToast } from "../components/toast/ToastContext";
 
 import {
   setApplications,
@@ -32,6 +33,7 @@ import {
 
 export default function Applications() {
   const dispatch = useDispatch();
+  const { showToast } = useToast();
 
   const applications = useSelector((state) => state.applications.list);
   const currentUser = useSelector(selectCurrentUser);
@@ -57,7 +59,6 @@ export default function Applications() {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [pageLoading, setPageLoading] = useState(false);
-  const [apiError, setApiError] = useState("");
   const [actionLoadingId, setActionLoadingId] = useState(null);
   const [pdfLoadingId, setPdfLoadingId] = useState(null);
 
@@ -65,7 +66,6 @@ export default function Applications() {
     async function loadApplications() {
       try {
         setPageLoading(true);
-        setApiError("");
 
         const data = await fetchApplications();
 
@@ -73,7 +73,7 @@ export default function Applications() {
           dispatch(setApplications(data));
         }
       } catch (error) {
-        setApiError("Failed to load applications from backend.");
+        showToast("Failed to load applications from backend.", "error");
       } finally {
         setPageLoading(false);
       }
@@ -96,6 +96,7 @@ export default function Applications() {
     setErrors(validationErrors);
 
     if (Object.keys(validationErrors).length > 0) {
+      showToast("Please fix the highlighted form errors.", "warning");
       return;
     }
 
@@ -111,7 +112,6 @@ export default function Applications() {
 
     try {
       setLoading(true);
-      setApiError("");
 
       const created = await createApplication(payload);
       dispatch(addApplicationLocal(created));
@@ -125,9 +125,9 @@ export default function Applications() {
       });
 
       setErrors({});
-      alert("Application submitted successfully.");
+      showToast("Application submitted successfully.", "success");
     } catch (error) {
-      setApiError("Failed to submit application.");
+      showToast("Failed to submit application.", "error");
     } finally {
       setLoading(false);
     }
@@ -136,7 +136,6 @@ export default function Applications() {
   async function handleManagerApprove(app) {
     try {
       setActionLoadingId(app.id);
-      setApiError("");
 
       await managerApproveApplicationRequest(app.id, {
         reviewedBy: currentUser.name,
@@ -144,9 +143,10 @@ export default function Applications() {
         referenceText: "",
       });
 
+      showToast("Manager approved application.", "success");
       await reloadApplications();
     } catch (error) {
-      setApiError("Failed to manager-approve application.");
+      showToast("Failed to manager-approve application.", "error");
     } finally {
       setActionLoadingId(null);
     }
@@ -155,12 +155,14 @@ export default function Applications() {
   async function handleAdminApprove(app) {
     try {
       setActionLoadingId(app.id);
-      setApiError("");
 
       const referenceText = referenceTextMap[app.id] || "";
 
       if (app.type === "Reference Letter" && !referenceText.trim()) {
-        setApiError("Reference letter content is required before final approval.");
+        showToast(
+          "Reference letter content is required before final approval.",
+          "warning"
+        );
         setActionLoadingId(null);
         return;
       }
@@ -171,9 +173,10 @@ export default function Applications() {
         referenceText: app.type === "Reference Letter" ? referenceText : "",
       });
 
+      showToast("Application approved successfully.", "success");
       await reloadApplications();
     } catch (error) {
-      setApiError("Failed to final-approve application.");
+      showToast("Failed to final-approve application.", "error");
     } finally {
       setActionLoadingId(null);
     }
@@ -182,7 +185,6 @@ export default function Applications() {
   async function handleReject(app) {
     try {
       setActionLoadingId(app.id);
-      setApiError("");
 
       await rejectApplicationRequest(app.id, {
         reviewedBy: currentUser.name,
@@ -190,10 +192,14 @@ export default function Applications() {
         referenceText: "",
       });
 
-      dispatch(rejectApplicationLocal({ appId: app.id, reviewer: currentUser.name }));
+      dispatch(
+        rejectApplicationLocal({ appId: app.id, reviewer: currentUser.name })
+      );
+
+      showToast("Application rejected.", "success");
       await reloadApplications();
     } catch (error) {
-      setApiError("Failed to reject application.");
+      showToast("Failed to reject application.", "error");
     } finally {
       setActionLoadingId(null);
     }
@@ -202,11 +208,11 @@ export default function Applications() {
   async function handleDownloadLeavePdf(app) {
     try {
       setPdfLoadingId(app.id);
-      setApiError("");
 
       await downloadLeaveApprovalPdf(app.id);
+      showToast("Leave approval PDF download started.", "success");
     } catch (error) {
-      setApiError("Failed to download leave approval PDF.");
+      showToast("Failed to download leave approval PDF.", "error");
     } finally {
       setPdfLoadingId(null);
     }
@@ -215,11 +221,11 @@ export default function Applications() {
   async function handleDownloadReferenceLetter(app) {
     try {
       setPdfLoadingId(app.id);
-      setApiError("");
 
       await downloadReferenceLetterPdf(app.id);
+      showToast("Reference letter download started.", "success");
     } catch (error) {
-      setApiError("Failed to download reference letter PDF.");
+      showToast("Failed to download reference letter PDF.", "error");
     } finally {
       setPdfLoadingId(null);
     }
@@ -246,12 +252,6 @@ export default function Applications() {
       {pageLoading && (
         <p style={{ marginBottom: 12, color: "#555" }}>
           Loading applications...
-        </p>
-      )}
-
-      {apiError && (
-        <p style={{ marginBottom: 12, color: "red", fontSize: 12 }}>
-          {apiError}
         </p>
       )}
 
@@ -451,7 +451,13 @@ export default function Applications() {
                     {isAdmin &&
                       app.managerStatus === "Approved" &&
                       app.adminStatus === "Pending" && (
-                        <div style={{ display: "flex", gap: 8, flexDirection: "column" }}>
+                        <div
+                          style={{
+                            display: "flex",
+                            gap: 8,
+                            flexDirection: "column",
+                          }}
+                        >
                           {app.type === "Reference Letter" && (
                             <textarea
                               style={{

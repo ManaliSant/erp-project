@@ -3,9 +3,11 @@ import { Link, useSearchParams } from "react-router-dom";
 
 import { resetPasswordWithToken } from "../services/authService";
 import { styles } from "../utils/styles";
+import { useToast } from "../components/toast/ToastContext";
 
 export default function ResetPassword() {
   const [searchParams] = useSearchParams();
+  const { showToast } = useToast();
 
   const tokenFromUrl = searchParams.get("token") || "";
 
@@ -16,54 +18,50 @@ export default function ResetPassword() {
   });
 
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
 
   async function handleSubmit(e) {
     e.preventDefault();
 
     if (!form.token.trim()) {
-      setError("Reset token is required.");
-      setMessage("");
+      showToast("Reset token is required.", "warning");
       return;
     }
 
     if (!form.newPassword.trim()) {
-      setError("New password is required.");
-      setMessage("");
+      showToast("New password is required.", "warning");
       return;
     }
 
     if (form.newPassword.length < 6) {
-      setError("Password must be at least 6 characters.");
-      setMessage("");
+      showToast("Password must be at least 6 characters.", "warning");
       return;
     }
 
     if (form.newPassword !== form.confirmPassword) {
-      setError("Passwords do not match.");
-      setMessage("");
+      showToast("Passwords do not match.", "warning");
       return;
     }
 
     try {
       setLoading(true);
-      setError("");
-      setMessage("");
 
       const response = await resetPasswordWithToken({
         token: form.token.trim(),
         newPassword: form.newPassword,
       });
 
-      setMessage(response.message || "Password reset successfully.");
+      showToast(response.message || "Password reset successfully.", "success");
+
       setForm({
         token: form.token,
         newPassword: "",
         confirmPassword: "",
       });
     } catch (err) {
-      setError("Failed to reset password. Token may be invalid or expired.");
+      showToast(
+        "Failed to reset password. Token may be invalid or expired.",
+        "error"
+      );
     } finally {
       setLoading(false);
     }
@@ -91,13 +89,13 @@ export default function ResetPassword() {
           <div style={{ marginBottom: 12 }}>
             <label style={styles.label}>Reset Token</label>
             <input
-                style={{
+              style={{
                 ...styles.input,
                 background: tokenFromUrl ? "#f3f4f6" : "#ffffff",
-                    }}
-                value={form.token}
-                 readOnly={Boolean(tokenFromUrl)}
-                 onChange={(e) => setForm({ ...form, token: e.target.value })}
+              }}
+              value={form.token}
+              readOnly={Boolean(tokenFromUrl)}
+              onChange={(e) => setForm({ ...form, token: e.target.value })}
             />
           </div>
 
@@ -124,9 +122,6 @@ export default function ResetPassword() {
               }
             />
           </div>
-
-          {error && <p style={{ color: "red", fontSize: 12 }}>{error}</p>}
-          {message && <p style={{ color: "green", fontSize: 12 }}>{message}</p>}
 
           <button type="submit" style={styles.primaryButton} disabled={loading}>
             {loading ? "Resetting..." : "Reset Password"}

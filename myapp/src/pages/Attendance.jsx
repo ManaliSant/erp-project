@@ -5,6 +5,7 @@ import Card from "../components/common/Card";
 import StatusBadge from "../components/common/StatusBadge";
 import StatBox from "../components/common/StatBox";
 import { styles } from "../utils/styles";
+import { useToast } from "../components/toast/ToastContext";
 
 import { restoreSession } from "../features/auth/authSlice";
 
@@ -28,6 +29,7 @@ import {
 
 export default function Attendance() {
   const dispatch = useDispatch();
+  const { showToast } = useToast();
 
   const currentUser = useSelector(selectCurrentUser);
   const isAdmin = useSelector(selectIsAdmin);
@@ -45,9 +47,6 @@ export default function Attendance() {
   const [filterLoading, setFilterLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
 
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
-
   const isSignedIn = currentUser?.signedIn === true;
 
   const todayRecord = myAttendance.find(
@@ -62,7 +61,6 @@ export default function Attendance() {
   async function loadAttendance() {
     try {
       setLoading(true);
-      setError("");
 
       const myData = await fetchMyAttendance();
       setMyAttendance(Array.isArray(myData) ? myData : []);
@@ -77,7 +75,7 @@ export default function Attendance() {
         setAllAttendance(Array.isArray(allData) ? allData : []);
       }
     } catch (err) {
-      setError("Failed to load attendance.");
+      showToast("Failed to load attendance.", "error");
     } finally {
       setLoading(false);
     }
@@ -95,15 +93,13 @@ export default function Attendance() {
   async function handleSignIn() {
     try {
       setActionLoading(true);
-      setError("");
-      setSuccess("");
 
       await signIn();
       await refreshEverything();
 
-      setSuccess("Signed in successfully.");
+      showToast("Signed in successfully.", "success");
     } catch (err) {
-      setError("Sign in failed. You may already be signed in today.");
+      showToast("Sign in failed. You may already be signed in today.", "error");
     } finally {
       setActionLoading(false);
     }
@@ -112,15 +108,16 @@ export default function Attendance() {
   async function handleSignOut() {
     try {
       setActionLoading(true);
-      setError("");
-      setSuccess("");
 
       await signOut();
       await refreshEverything();
 
-      setSuccess("Signed out successfully.");
+      showToast("Signed out successfully.", "success");
     } catch (err) {
-      setError("Sign out failed. You may need to sign in first or already signed out.");
+      showToast(
+        "Sign out failed. You may need to sign in first or already signed out.",
+        "error"
+      );
     } finally {
       setActionLoading(false);
     }
@@ -130,22 +127,19 @@ export default function Attendance() {
     e.preventDefault();
 
     if (!filterDate) {
-      setError("Select a date first.");
-      setSuccess("");
+      showToast("Select a date first.", "warning");
       return;
     }
 
     try {
       setFilterLoading(true);
-      setError("");
-      setSuccess("");
 
       const data = await fetchAttendanceByDate(filterDate);
       setAllAttendance(Array.isArray(data) ? data : []);
 
-      setSuccess(`Showing attendance for ${filterDate}.`);
+      showToast(`Showing attendance for ${filterDate}.`, "success");
     } catch (err) {
-      setError("Failed to filter attendance by date.");
+      showToast("Failed to filter attendance by date.", "error");
     } finally {
       setFilterLoading(false);
     }
@@ -155,22 +149,22 @@ export default function Attendance() {
     e.preventDefault();
 
     if (!rangeStartDate || !rangeEndDate) {
-      setError("Select start date and end date.");
-      setSuccess("");
+      showToast("Select start date and end date.", "warning");
       return;
     }
 
     try {
       setFilterLoading(true);
-      setError("");
-      setSuccess("");
 
       const data = await fetchAttendanceByRange(rangeStartDate, rangeEndDate);
       setAllAttendance(Array.isArray(data) ? data : []);
 
-      setSuccess(`Showing attendance from ${rangeStartDate} to ${rangeEndDate}.`);
+      showToast(
+        `Showing attendance from ${rangeStartDate} to ${rangeEndDate}.`,
+        "success"
+      );
     } catch (err) {
-      setError("Failed to filter attendance by range.");
+      showToast("Failed to filter attendance by range.", "error");
     } finally {
       setFilterLoading(false);
     }
@@ -180,12 +174,15 @@ export default function Attendance() {
     setFilterDate("");
     setRangeStartDate("");
     setRangeEndDate("");
-    setSuccess("");
     await loadAttendance();
+    showToast("Attendance filters cleared.", "success");
   }
 
   function getTotalWorkedMinutes(records) {
-    return records.reduce((total, record) => total + Number(record.workedMinutes || 0), 0);
+    return records.reduce(
+      (total, record) => total + Number(record.workedMinutes || 0),
+      0
+    );
   }
 
   function formatMinutes(minutes) {
@@ -250,18 +247,6 @@ export default function Attendance() {
 
   return (
     <div>
-      {error && (
-        <p style={{ marginBottom: 12, color: "red", fontSize: 13 }}>
-          {error}
-        </p>
-      )}
-
-      {success && (
-        <p style={{ marginBottom: 12, color: "green", fontSize: 13 }}>
-          {success}
-        </p>
-      )}
-
       <div style={styles.statsGrid}>
         <StatBox
           label="Current Status"
@@ -271,10 +256,7 @@ export default function Attendance() {
           label="Today's Worked Time"
           value={todayRecord?.workedHours || "0h 0m"}
         />
-        <StatBox
-          label="My Attendance Records"
-          value={myAttendance.length}
-        />
+        <StatBox label="My Attendance Records" value={myAttendance.length} />
         <StatBox
           label="Total Worked Time"
           value={formatMinutes(getTotalWorkedMinutes(myAttendance))}
@@ -348,7 +330,7 @@ export default function Attendance() {
                 style={styles.primaryButton}
                 disabled={filterLoading}
               >
-                Filter Date
+                {filterLoading ? "Filtering..." : "Filter Date"}
               </button>
             </form>
 
@@ -375,7 +357,7 @@ export default function Attendance() {
                 style={styles.primaryButton}
                 disabled={filterLoading}
               >
-                Filter Range
+                {filterLoading ? "Filtering..." : "Filter Range"}
               </button>
             </form>
 

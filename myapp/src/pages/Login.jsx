@@ -5,10 +5,12 @@ import { useDispatch } from "react-redux";
 import { loginSuccess } from "../features/auth/authSlice";
 import { loginUser } from "../services/authService";
 import { styles } from "../utils/styles";
+import { useToast } from "../components/toast/ToastContext";
 
 export default function Login() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const { showToast } = useToast();
 
   const [form, setForm] = useState({
     email: "",
@@ -16,19 +18,17 @@ export default function Login() {
   });
 
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
 
   async function handleSubmit(e) {
     e.preventDefault();
 
     if (!form.email.trim() || !form.password.trim()) {
-      setError("Email and password are required.");
+      showToast("Email and password are required.", "warning");
       return;
     }
 
     try {
       setLoading(true);
-      setError("");
 
       const data = await loginUser({
         email: form.email.trim().toLowerCase(),
@@ -36,9 +36,10 @@ export default function Login() {
       });
 
       dispatch(loginSuccess(data));
+      showToast("Login successful.", "success");
       navigate("/dashboard");
     } catch (err) {
-      setError("Login failed. Check credentials or account status.");
+      showToast("Login failed. Check credentials or account status.", "error");
     } finally {
       setLoading(false);
     }
@@ -78,8 +79,6 @@ export default function Login() {
               onChange={(e) => setForm({ ...form, password: e.target.value })}
             />
           </div>
-
-          {error && <p style={{ color: "red", fontSize: 12 }}>{error}</p>}
 
           <button type="submit" style={styles.primaryButton} disabled={loading}>
             {loading ? "Signing in..." : "Login"}

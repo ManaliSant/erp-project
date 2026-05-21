@@ -4,6 +4,7 @@ import { useSelector } from "react-redux";
 import Card from "../components/common/Card";
 import StatusBadge from "../components/common/StatusBadge";
 import { styles } from "../utils/styles";
+import { useToast } from "../components/toast/ToastContext";
 
 import { selectIsAdmin } from "../features/auth/selectors";
 
@@ -18,6 +19,7 @@ const STATUS_OPTIONS = ["Active", "Inactive", "Resigned", "Terminated"];
 
 export default function Employees() {
   const isAdmin = useSelector(selectIsAdmin);
+  const { showToast } = useToast();
 
   const [employees, setEmployees] = useState([]);
 
@@ -38,9 +40,6 @@ export default function Employees() {
 
   const [statusDrafts, setStatusDrafts] = useState({});
 
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
-
   const [form, setForm] = useState({
     employeeCode: "",
     name: "",
@@ -58,7 +57,6 @@ export default function Employees() {
   async function loadEmployees(targetPage = page) {
     try {
       setLoading(true);
-      setError("");
 
       const response = await fetchEmployeesPage({
         page: targetPage,
@@ -83,7 +81,7 @@ export default function Employees() {
       });
       setStatusDrafts(drafts);
     } catch (err) {
-      setError("Failed to load employees.");
+      showToast("Failed to load employees.", "error");
     } finally {
       setLoading(false);
     }
@@ -120,15 +118,12 @@ export default function Employees() {
     const validationError = validateForm();
 
     if (validationError) {
-      setError(validationError);
-      setSuccess("");
+      showToast(validationError, "warning");
       return;
     }
 
     try {
       setCreating(true);
-      setError("");
-      setSuccess("");
 
       const payload = {
         employeeCode: form.employeeCode.trim(),
@@ -160,10 +155,13 @@ export default function Employees() {
         status: "Active",
       });
 
-      setSuccess("Employee created successfully.");
+      showToast("Employee created successfully.", "success");
       await loadEmployees(0);
     } catch (err) {
-      setError("Failed to create employee. Check duplicate email or employee code.");
+      showToast(
+        "Failed to create employee. Check duplicate email or employee code.",
+        "error"
+      );
     } finally {
       setCreating(false);
     }
@@ -178,23 +176,20 @@ export default function Employees() {
     if (!newPassword) return;
 
     if (newPassword.trim().length < 6) {
-      setError("Password must be at least 6 characters.");
-      setSuccess("");
+      showToast("Password must be at least 6 characters.", "warning");
       return;
     }
 
     try {
       setResettingId(employee.id);
-      setError("");
-      setSuccess("");
 
       await resetEmployeePassword(employee.id, {
         newPassword: newPassword.trim(),
       });
 
-      setSuccess(`Password reset successfully for ${employee.name}.`);
+      showToast(`Password reset successfully for ${employee.name}.`, "success");
     } catch (err) {
-      setError("Failed to reset password.");
+      showToast("Failed to reset password.", "error");
     } finally {
       setResettingId(null);
     }
@@ -204,14 +199,12 @@ export default function Employees() {
     const selectedStatus = statusDrafts[employee.id] || employee.status;
 
     if (!selectedStatus) {
-      setError("Select a valid status.");
-      setSuccess("");
+      showToast("Select a valid status.", "warning");
       return;
     }
 
     if (selectedStatus === employee.status) {
-      setError("");
-      setSuccess("No status change needed.");
+      showToast("No status change needed.", "warning");
       return;
     }
 
@@ -223,15 +216,13 @@ export default function Employees() {
 
     try {
       setStatusUpdatingId(employee.id);
-      setError("");
-      setSuccess("");
 
       await updateEmployeeStatus(employee.id, selectedStatus);
 
-      setSuccess(`Status updated for ${employee.name}.`);
+      showToast(`Status updated for ${employee.name}.`, "success");
       await loadEmployees(page);
     } catch (err) {
-      setError("Failed to update employee status.");
+      showToast("Failed to update employee status.", "error");
     } finally {
       setStatusUpdatingId(null);
     }
@@ -283,18 +274,6 @@ export default function Employees() {
 
   return (
     <div>
-      {error && (
-        <p style={{ marginBottom: 12, color: "red", fontSize: 13 }}>
-          {error}
-        </p>
-      )}
-
-      {success && (
-        <p style={{ marginBottom: 12, color: "green", fontSize: 13 }}>
-          {success}
-        </p>
-      )}
-
       <Card title="Add Employee">
         <form onSubmit={handleCreateEmployee}>
           <div style={styles.formGrid}>
@@ -321,6 +300,7 @@ export default function Employees() {
             <div>
               <label style={styles.label}>Email</label>
               <input
+                type="email"
                 style={styles.input}
                 value={form.email}
                 placeholder="john.test@company.com"
