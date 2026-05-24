@@ -10,30 +10,34 @@ import java.util.Optional;
 
 public interface EmployeeRepository extends JpaRepository<Employee, Long> {
 
-    Optional<Employee> findByEmail(String email);
+        Optional<Employee> findByEmail(String email);
 
-    Optional<Employee> findByResetPasswordToken(String resetPasswordToken);
+        Optional<Employee> findByNameIgnoreCase(String name);
 
-    List<Employee> findByManager(String manager);
+        Optional<Employee> findByResetPasswordToken(String resetPasswordToken);
 
-    long countByRoleIgnoreCase(String role);
+        List<Employee> findByManager(String manager);
 
-    long countBySignedInTrue();
+        List<Employee> findByRoleIgnoreCase(String role);
 
-    Page<Employee> findByStatusIgnoreCase(String status, Pageable pageable);
+        long countByRoleIgnoreCase(String role);
 
-    Page<Employee> findByNameContainingIgnoreCaseOrEmailContainingIgnoreCaseOrDepartmentContainingIgnoreCase(
-            String name,
-            String email,
-            String department,
-            Pageable pageable);
+        long countBySignedInTrue();
 
-    Page<Employee> findByStatusIgnoreCaseAndNameContainingIgnoreCaseOrStatusIgnoreCaseAndEmailContainingIgnoreCaseOrStatusIgnoreCaseAndDepartmentContainingIgnoreCase(
-            String status1,
-            String name,
-            String status2,
-            String email,
-            String status3,
-            String department,
-            Pageable pageable);
+        Page<Employee> findByStatusIgnoreCase(String status, Pageable pageable);
+
+        Page<Employee> findByNameContainingIgnoreCaseOrEmailContainingIgnoreCaseOrDepartmentContainingIgnoreCase(
+                        String name,
+                        String email,
+                        String department,
+                        Pageable pageable);
+
+        Page<Employee> findByStatusIgnoreCaseAndNameContainingIgnoreCaseOrStatusIgnoreCaseAndEmailContainingIgnoreCaseOrStatusIgnoreCaseAndDepartmentContainingIgnoreCase(
+                        String status1,
+                        String name,
+                        String status2,
+                        String email,
+                        String status3,
+                        String department,
+                        Pageable pageable);
 }

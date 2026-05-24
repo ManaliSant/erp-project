@@ -32,6 +32,7 @@ public class AuthService {
     private final JwtService jwtService;
     private final AuditService auditService;
     private final PasswordEncoder passwordEncoder;
+    private final NotificationService notificationService;
 
     public LoginResponse login(LoginRequest request) {
         if (request.email() == null || request.email().isBlank()) {
@@ -104,6 +105,13 @@ public class AuthService {
                     System.out.println("Expires at: " + expiry);
                     System.out.println("=================================================");
 
+                    notificationService.createNotification(
+                            employee,
+                            "Password Reset Requested",
+                            "A password reset link was generated for your account. If this was not you, contact HR/admin.",
+                            "PASSWORD",
+                            "PASSWORD_RESET");
+
                     auditService.log(
                             employee.getEmail(),
                             "REQUEST_PASSWORD_RESET",
@@ -146,6 +154,13 @@ public class AuthService {
         employee.setResetPasswordTokenExpiry(null);
 
         employeeRepository.save(employee);
+
+        notificationService.createNotification(
+                employee,
+                "Password Changed",
+                "Your password was changed successfully using the reset password flow.",
+                "PASSWORD",
+                "PASSWORD_RESET");
 
         auditService.log(
                 employee.getEmail(),

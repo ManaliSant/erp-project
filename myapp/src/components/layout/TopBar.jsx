@@ -1,7 +1,9 @@
 import React from "react";
 import { useDispatch } from "react-redux";
+
 import { logout } from "../../features/auth/authSlice";
 import { styles } from "../../utils/styles";
+import NotificationBell from "../notifications/NotificationBell";
 
 export default function Topbar({ currentUser }) {
   const dispatch = useDispatch();
@@ -16,10 +18,13 @@ export default function Topbar({ currentUser }) {
       </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <NotificationBell />
+
         <div>
           <div style={{ fontSize: 12, color: "#999" }}>Logged in as</div>
           <div style={{ fontWeight: "bold" }}>
-            {currentUser?.name || "Unknown User"} {currentUser?.role ? `- ${currentUser.role}` : ""}
+            {currentUser?.name || "Unknown User"}{" "}
+            {currentUser?.role ? `- ${currentUser.role}` : ""}
           </div>
         </div>
 

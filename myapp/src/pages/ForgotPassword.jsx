@@ -3,34 +3,35 @@ import { Link } from "react-router-dom";
 
 import { forgotPassword } from "../services/authService";
 import { styles } from "../utils/styles";
+import { useToast } from "../components/toast/ToastContext";
 
 export default function ForgotPassword() {
+  const { showToast } = useToast();
+
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
 
   async function handleSubmit(e) {
     e.preventDefault();
 
     if (!email.trim()) {
-      setError("Email is required.");
-      setMessage("");
+      showToast("Email is required.", "warning");
       return;
     }
 
     try {
       setLoading(true);
-      setError("");
-      setMessage("");
 
       const response = await forgotPassword({
         email: email.trim().toLowerCase(),
       });
 
-      setMessage(response.message || "Reset link generated. Check backend console.");
+      showToast(
+        response.message || "Reset link generated. Check backend console.",
+        "success"
+      );
     } catch (err) {
-      setError("Failed to request password reset.");
+      showToast("Failed to request password reset.", "error");
     } finally {
       setLoading(false);
     }
@@ -66,9 +67,6 @@ export default function ForgotPassword() {
               onChange={(e) => setEmail(e.target.value)}
             />
           </div>
-
-          {error && <p style={{ color: "red", fontSize: 12 }}>{error}</p>}
-          {message && <p style={{ color: "green", fontSize: 12 }}>{message}</p>}
 
           <button type="submit" style={styles.primaryButton} disabled={loading}>
             {loading ? "Generating..." : "Generate Reset Link"}

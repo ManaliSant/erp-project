@@ -77,3 +77,13 @@ export async function del(url) {
 
   return handleResponse(response, "DELETE", url);
 }
+
+export async function put(url, data = {}) {
+  const response = await fetch(`${BASE_URL}${url}`, {
+    method: "PUT",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(data),
+  });
+
+  return handleResponse(response, "PUT", url);
+}

@@ -26,6 +26,7 @@ public class ApplicationService {
     private final AuditService auditService;
     private final LeaveApprovalPdfService leaveApprovalPdfService;
     private final ReferenceLetterPdfService referenceLetterPdfService;
+    private final NotificationService notificationService;
 
     private Employee getLoggedInEmployee(Authentication authentication) {
         String email = authentication.getName();
@@ -110,6 +111,20 @@ public class ApplicationService {
 
         HrApplication savedApplication = applicationRepository.save(application);
 
+        if ("EMPLOYEE".equalsIgnoreCase(currentUser.getRole())
+                && currentUser.getManager() != null
+                && !currentUser.getManager().isBlank()) {
+
+            employeeRepository.findByNameIgnoreCase(currentUser.getManager())
+                    .ifPresent(manager -> notificationService.createNotification(
+                            manager,
+                            "New Application Submitted",
+                            currentUser.getName() + " submitted a "
+                                    + savedApplication.getType() + " request.",
+                            "APPLICATION",
+                            savedApplication.getId()));
+        }
+
         auditService.log(
                 currentUser.getEmail(),
                 "CREATE_APPLICATION",
@@ -150,6 +165,15 @@ public class ApplicationService {
         application.setStatus("Manager Approved");
 
         HrApplication savedApplication = applicationRepository.save(application);
+
+        notificationService.createNotification(
+                applicationOwner,
+                "Application Approved By Manager",
+                "Your " + application.getType()
+                        + " request was approved by manager "
+                        + manager.getName() + ".",
+                "APPLICATION",
+                application.getId());
 
         auditService.log(
                 manager.getEmail(),
@@ -198,6 +222,13 @@ public class ApplicationService {
             application.setPdfGenerated(true);
             application.setPdfPath(pdfPath);
             application.setPdfGeneratedAt(LocalDateTime.now().withNano(0).toString().replace("T", " "));
+
+            notificationService.createNotification(
+                    employee,
+                    "Leave Approved",
+                    "Your leave request has been approved and approval PDF generated.",
+                    "APPLICATION",
+                    application.getId());
         }
 
         if ("Reference Letter".equalsIgnoreCase(application.getType())) {
@@ -213,9 +244,23 @@ public class ApplicationService {
             application.setPdfGenerated(true);
             application.setPdfPath(pdfPath);
             application.setPdfGeneratedAt(LocalDateTime.now().withNano(0).toString().replace("T", " "));
+
+            notificationService.createNotification(
+                    employee,
+                    "Reference Letter Ready",
+                    "Your reference letter has been approved and PDF generated.",
+                    "APPLICATION",
+                    application.getId());
         }
 
         HrApplication savedApplication = applicationRepository.save(application);
+
+        notificationService.createNotification(
+                employee,
+                "Application Approved",
+                "Your " + application.getType() + " request has been fully approved.",
+                "APPLICATION",
+                application.getId());
 
         auditService.log(
                 admin.getEmail(),
@@ -249,10 +294,10 @@ public class ApplicationService {
             throw new BadRequestException("Approved application cannot be rejected");
         }
 
-        if ("MANAGER".equalsIgnoreCase(currentUser.getRole())) {
-            Employee applicationOwner = employeeRepository.findById(application.getEmployeeId())
-                    .orElseThrow(() -> new BadRequestException("Employee not found"));
+        Employee applicationOwner = employeeRepository.findById(application.getEmployeeId())
+                .orElseThrow(() -> new BadRequestException("Employee not found"));
 
+        if ("MANAGER".equalsIgnoreCase(currentUser.getRole())) {
             if (!currentUser.getName().equalsIgnoreCase(applicationOwner.getManager())) {
                 throw new BadRequestException("Manager can only reject own team applications");
             }
@@ -269,6 +314,15 @@ public class ApplicationService {
         application.setAdminStatus("Rejected");
 
         HrApplication savedApplication = applicationRepository.save(application);
+
+        notificationService.createNotification(
+                applicationOwner,
+                "Application Rejected",
+                "Your " + application.getType()
+                        + " request was rejected by "
+                        + currentUser.getName() + ".",
+                "APPLICATION",
+                application.getId());
 
         auditService.log(
                 currentUser.getEmail(),
